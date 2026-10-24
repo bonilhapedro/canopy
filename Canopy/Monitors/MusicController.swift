@@ -20,9 +20,10 @@ final class MusicController {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                let userInfo = notification.userInfo ?? [:]
+                // O userInfo não é Sendable: vira NowPlaying antes de entrar no MainActor.
+                let track = NowPlaying.parse(player: player, userInfo: notification.userInfo ?? [:], at: .now)
                 MainActor.assumeIsolated {
-                    self?.handle(player: player, userInfo: userInfo)
+                    self?.handle(player: player, track: track)
                 }
             }
             observers.append(token)
@@ -36,8 +37,8 @@ final class MusicController {
 
     // MARK: - Notificações
 
-    private func handle(player: NowPlaying.Player, userInfo: [AnyHashable: Any]) {
-        guard var track = NowPlaying.parse(player: player, userInfo: userInfo, at: .now) else {
+    private func handle(player: NowPlaying.Player, track: NowPlaying?) {
+        guard var track else {
             if nowPlaying?.player == player { update(nil) }
             return
         }
