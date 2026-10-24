@@ -10,8 +10,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let weather = WeatherService()
     let timer = TimerController()
 
+    let battery = BatteryMonitor()
+
     private let music = MusicController()
-    private let battery = BatteryMonitor()
     private let privacy = PrivacyMonitor()
     private let volume = VolumeMonitor()
     private let brightness = BrightnessController()
@@ -29,9 +30,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let controller = NotchWindowController(
             coordinator: coordinator,
-            services: IslandServices(calendar: calendar, weather: weather, timer: timer)
+            services: IslandServices(calendar: calendar, weather: weather, timer: timer, battery: battery)
         )
         windowController = controller
+        startModules()
         applyPreferences()
         controller.show()
 
@@ -41,7 +43,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.windowController?.reposition() }
+            MainActor.assumeIsolated {
+                self?.windowController?.reposition()
+                self?.brightness.displaysChanged()
+            }
         }
 
         // Ajustes mudaram: aplica na hora, sem reiniciar.
@@ -53,17 +58,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { self?.applyPreferences() }
         }
 
-        // Um clique em qualquer outro app fecha a ilha aberta.
-        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            MainActor.assumeIsolated { self?.coordinator.dismiss() }
-        }
+        coordinator.onPhaseChange = { [weak self] phase in self?.phaseChanged(phase) }
 
-        startModules()
         #if BENCHMARK
         runBenchmark()
         #endif
     }
 
+    /// Chamado a cada mudança nos UserDefaults, inclusive as que não são dos Ajustes;
+    /// por isso cada passo só faz alguma coisa quando o valor dele mudou mesmo.
     private func applyPreferences() {
         let adjustment = Preferences.pillAdjustment
         if coordinator.closedAdjustment != adjustment { coordinator.closedAdjustment = adjustment }
@@ -71,8 +74,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if coordinator.showsWeather != showsWeather { coordinator.showsWeather = showsWeather }
         windowController?.applyPreferences()
         mediaKeys.setEnabled(Preferences.replaceSystemHUD && (Preferences.volumeHUD || Preferences.brightnessHUD))
-        if !Preferences.hideInFullscreen { windowController?.setHidden(false) }
-        fullscreen.check()
+        // Sem esconder em tela cheia, ninguém precisa saber quando um app entra em tela cheia.
+        fullscreen.setEnabled(Preferences.hideInFullscreen)
+    }
+
+    /// O que só precisa existir com a ilha aberta.
+    private func phaseChanged(_ phase: IslandPhase) {
+        if phase == .expanded {
+            // Um clique em qualquer outro app fecha a ilha aberta. Fechada, os cliques do Mac
+            // inteiro não precisam passar pelo Canopy.
+            if clickMonitor == nil {
+                clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.coordinator.dismiss() }
+                }
+            }
+            // O clima só é buscado quando alguém pode olhar para ele.
+            weather.refreshIfNeeded()
+        } else if let monitor = clickMonitor {
+            NSEvent.removeMonitor(monitor)
+            clickMonitor = nil
+        }
     }
 
     private func startModules() {
@@ -120,13 +141,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         calendar.onUpcomingChange = { [weak self] in self?.meetingChanged() }
         calendar.start()
 
-        weather.start()
-
         fullscreen.screenSize = { [weak self] in self?.windowController?.screen?.frame.size }
         fullscreen.onChange = { [weak self] isFullscreen in
-            self?.windowController?.setHidden(isFullscreen && Preferences.hideInFullscreen)
+            self?.windowController?.setHidden(isFullscreen)
         }
-        fullscreen.start()
     }
 
     private func showVolume() {

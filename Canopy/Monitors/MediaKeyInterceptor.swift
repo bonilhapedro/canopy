@@ -15,15 +15,19 @@ final class MediaKeyInterceptor {
 
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
-    private var trustTask: Task<Void, Never>?
     private var consumedKeys: Set<Int> = []
     private var hasPrompted = false
+    /// Enquanto falta a permissão: o aviso do macOS de que a lista de Acessibilidade mudou
+    /// e a volta para o Canopy, para o caso de o aviso se perder.
+    private var trustObserver: NSObjectProtocol?
+    private var activationObserver: NSObjectProtocol?
+    private var retryTask: Task<Void, Never>?
 
     var isRunning: Bool { tap != nil }
 
     static var isTrusted: Bool { AXIsProcessTrusted() }
 
-    /// Liga ou desliga. Sem a permissão, pede uma vez e fica esperando ela ser dada.
+    /// Liga ou desliga. Sem a permissão, pede uma vez e espera o macOS avisar que ela foi dada.
     func setEnabled(_ enabled: Bool) {
         guard enabled else {
             stop()
@@ -35,17 +39,50 @@ final class MediaKeyInterceptor {
             hasPrompted = true
             Self.requestTrust()
         }
-        guard trustTask == nil else { return }
-        trustTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2))
-                guard let self else { return }
-                // Logo depois de liberar, o macOS às vezes ainda recusa o tap; tenta de novo na próxima volta.
-                guard MediaKeyInterceptor.isTrusted, self.install() else { continue }
-                self.trustTask = nil
-                return
+        waitForTrust()
+    }
+
+    private func waitForTrust() {
+        guard trustObserver == nil else { return }
+        trustObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("com.apple.accessibility.api"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.retryInstall() }
+        }
+        activationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.retryInstall() }
+        }
+    }
+
+    /// O aviso chega um pouco antes de a permissão valer, e logo depois de liberar o macOS às vezes
+    /// ainda recusa o tap: tenta algumas vezes, cada vez com mais calma, e volta a esperar.
+    private func retryInstall() {
+        retryTask?.cancel()
+        retryTask = Task { [weak self] in
+            for delay in [0.3, 1.0, 3.0] {
+                try? await Task.sleep(for: .seconds(delay))
+                guard let self, !Task.isCancelled, !self.isRunning else { return }
+                if MediaKeyInterceptor.isTrusted, self.install() {
+                    self.stopWaitingForTrust()
+                    return
+                }
             }
         }
+    }
+
+    private func stopWaitingForTrust() {
+        if let trustObserver { DistributedNotificationCenter.default().removeObserver(trustObserver) }
+        if let activationObserver { NotificationCenter.default.removeObserver(activationObserver) }
+        trustObserver = nil
+        activationObserver = nil
+        retryTask?.cancel()
+        retryTask = nil
     }
 
     /// Mostra o pedido do macOS para liberar o Canopy em Acessibilidade.
@@ -80,8 +117,7 @@ final class MediaKeyInterceptor {
     }
 
     private func stop() {
-        trustTask?.cancel()
-        trustTask = nil
+        stopWaitingForTrust()
         if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         tap = nil

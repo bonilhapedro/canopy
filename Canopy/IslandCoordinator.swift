@@ -14,6 +14,8 @@ final class IslandCoordinator {
     @ObservationIgnored private var flashTasks: [String: Task<Void, Never>] = [:]
 
     @ObservationIgnored private var swipe = SwipeTracker()
+    /// Avisa quando a ilha muda de tamanho, para quem só precisa trabalhar com ela aberta.
+    @ObservationIgnored var onPhaseChange: ((IslandPhase) -> Void)?
 
     var geometry = NotchGeometry(rect: CGRect(x: 0, y: 0, width: NotchGeometry.fallbackWidth, height: 24), hasNotch: false)
     /// Ajuste fino do tamanho da ilha fechada, vindo dos Ajustes.
@@ -139,16 +141,27 @@ final class IslandCoordinator {
 
     /// Passa o evento para a máquina de estados e, quando a ilha abre, volta para a primeira página.
     private func handle(_ event: IslandEvent) {
-        let wasExpanded = phase == .expanded
-        machine.handle(event)
-        if !wasExpanded, phase == .expanded {
-            page = pages.first ?? .home
-            pageStep = 1
+        var next = machine
+        next.handle(event)
+        // Sem mudança, nada é escrito: escrever avisaria todas as views da ilha à toa,
+        // e isso acontece a cada clique fora dela ou a cada aviso de volume.
+        guard next != machine else { return }
+        let previous = machine.phase
+        machine = next
+        guard phase != previous else { return }
+        if phase == .expanded {
+            let first = pages.first ?? .home
+            if page != first { page = first }
+            if pageStep != 1 { pageStep = 1 }
         }
+        onPhaseChange?(phase)
     }
 
-    var showsDemoActivity: Bool {
-        get { queue.contains(id: DemoActivity.activityID) }
-        set { newValue ? start(DemoActivity()) : end(id: DemoActivity.activityID) }
+    /// Guardado à parte para o menu da barra não depender da fila inteira.
+    var showsDemoActivity = false {
+        didSet {
+            guard showsDemoActivity != oldValue else { return }
+            showsDemoActivity ? start(DemoActivity()) : end(id: DemoActivity.activityID)
+        }
     }
 }

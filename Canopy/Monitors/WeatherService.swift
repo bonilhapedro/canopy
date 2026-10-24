@@ -6,6 +6,9 @@ import Observation
 
 /// Busca o clima no Open-Meteo. A localização vem do IP, ou do GPS do Mac com a
 /// localização precisa ligada nos Ajustes.
+///
+/// Não busca nada sozinho: a previsão é pedida quando a ilha abre ou a página do clima aparece,
+/// e só se a última tiver mais de meia hora. Com a ilha fechada ninguém está olhando.
 @MainActor
 @Observable
 final class WeatherService {
@@ -14,32 +17,11 @@ final class WeatherService {
     private(set) var isLoading = false
     private(set) var failed = false
 
-    @ObservationIgnored private let locator = PreciseLocator()
-    @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    /// Só existe com a localização precisa ligada: até lá o CoreLocation nem é aberto.
+    @ObservationIgnored private var locator: PreciseLocator?
 
     /// Depois disso a previsão é buscada de novo.
     static let maxAge: TimeInterval = 30 * 60
-
-    init() {
-        locator.onLocate = { [weak self] latitude, longitude, city in
-            self?.city = city ?? self?.city
-            self?.fetchForecast(latitude: latitude, longitude: longitude)
-        }
-        locator.onFail = { [weak self] in
-            // Sem GPS, o IP ainda dá uma ideia de onde o Mac está.
-            self?.fetchApproximate()
-        }
-    }
-
-    func start() {
-        refreshTask?.cancel()
-        refreshTask = Task { [weak self] in
-            while !Task.isCancelled {
-                self?.refreshIfNeeded()
-                try? await Task.sleep(for: .seconds(5 * 60))
-            }
-        }
-    }
 
     func refreshIfNeeded() {
         guard Preferences.weatherEnabled else { return }
@@ -52,19 +34,34 @@ final class WeatherService {
         isLoading = true
         failed = false
         if Preferences.preciseLocation {
-            locator.locate()
+            preciseLocator().locate()
         } else {
             fetchApproximate()
         }
     }
 
+    private func preciseLocator() -> PreciseLocator {
+        if let locator { return locator }
+        let locator = PreciseLocator()
+        locator.onLocate = { [weak self] latitude, longitude, city in
+            self?.city = city ?? self?.city
+            self?.fetchForecast(latitude: latitude, longitude: longitude)
+        }
+        locator.onFail = { [weak self] in
+            // Sem GPS, o IP ainda dá uma ideia de onde o Mac está.
+            self?.fetchApproximate()
+        }
+        self.locator = locator
+        return locator
+    }
+
     private func fetchApproximate() {
         Task {
             for url in ApproximateLocation.serviceURLs {
-                guard let (data, _) = try? await URLSession.shared.data(from: url),
+                guard let (data, _) = try? await URLSession.canopy.data(from: url),
                       let location = ApproximateLocation.parse(data)
                 else { continue }
-                city = location.city
+                if city != location.city { city = location.city }
                 fetchForecast(latitude: location.latitude, longitude: location.longitude)
                 return
             }
@@ -78,7 +75,7 @@ final class WeatherService {
             return
         }
         Task {
-            guard let (data, _) = try? await URLSession.shared.data(from: url),
+            guard let (data, _) = try? await URLSession.canopy.data(from: url),
                   let forecast = try? WeatherForecast.parse(data, now: .now)
             else {
                 fail()

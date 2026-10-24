@@ -5,7 +5,7 @@ import Foundation
 import Observation
 
 /// Lê e muda o brilho da tela embutida do MacBook.
-/// O macOS não tem API pública para isso; o Canopy usa a do DisplayServices, como o MonitorControl.
+/// O macOS não tem API pública para isso; o Canopy usa a do DisplayServices, como o MonitorControl e o Lunar.
 @MainActor
 @Observable
 final class BrightnessController {
@@ -14,28 +14,32 @@ final class BrightnessController {
 
     @ObservationIgnored var onChange: (() -> Void)?
     @ObservationIgnored private let api = BrightnessAPI.load()
-    @ObservationIgnored private var pollTask: Task<Void, Never>?
+    @ObservationIgnored private var display: CGDirectDisplayID?
     @ObservationIgnored private var wakeObservers: [NSObjectProtocol] = []
     /// Ao acordar, a tela volta do escuro para o brilho de antes; isso não é o usuário mexendo.
     @ObservationIgnored private var quietUntil = Date.distantPast
+    /// Começo da rajada de mudanças atual e o brilho de antes dela.
+    @ObservationIgnored private var burst: (start: Date, origin: Float)?
 
-    var isAvailable: Bool { api != nil && Self.builtInDisplay() != nil }
+    /// Quem recebe os avisos do DisplayServices, que chegam numa função C sem contexto.
+    fileprivate static weak var current: BrightnessController?
+
+    var isAvailable: Bool { api != nil && display != nil }
 
     func start() {
-        brightness = read() ?? 0
+        Self.current = self
         let center = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.screensDidWakeNotification, NSWorkspace.didWakeNotification] {
             wakeObservers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.quietUntil = .now.addingTimeInterval(3) }
             })
         }
-        // Mudanças feitas fora das teclas (Central de Controle, Touch Bar) só aparecem lendo de tempos em tempos.
-        pollTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(250))
-                self?.poll()
-            }
-        }
+        bindToBuiltInDisplay()
+    }
+
+    /// Monitor ligado ou desligado, tampa fechada ou aberta: a tela embutida pode ter mudado.
+    func displaysChanged() {
+        bindToBuiltInDisplay()
     }
 
     /// Um passo nas teclas de brilho: 1/16 da escala, ou 1/64 com Option+Shift, como no macOS.
@@ -47,23 +51,45 @@ final class BrightnessController {
     }
 
     func set(_ value: Float) {
-        guard let api, let display = Self.builtInDisplay() else { return }
+        guard let api, let display else { return }
         api.set(display, value)
         brightness = value
         onChange?()
     }
 
-    private func poll() {
-        guard let value = read() else { return }
+    /// Mudanças feitas fora das teclas (Central de Controle, Touch Bar, sensor de luz) chegam por aviso
+    /// do macOS, sem precisar ler o brilho de tempos em tempos.
+    private func bindToBuiltInDisplay() {
+        let builtIn = Self.builtInDisplay()
+        guard builtIn != display else { return }
+        if let display { api?.stopObserving(display) }
+        display = builtIn
+        guard let api, let builtIn else { return }
+        if let value = api.get(builtIn) { brightness = value }
+        api.observe(builtIn)
+    }
+
+    fileprivate func changed(to notified: Float?) {
+        guard let value = notified ?? read() else { return }
         let delta = abs(value - brightness)
+        // O brilho que o próprio Canopy pôs também é avisado; esse já está aqui.
         guard delta > 0.001 else { return }
+        let now = Date.now
+        // Arrastar o controle ou segurar a tecla manda várias mudanças seguidas: elas contam juntas.
+        let origin: Float
+        if let burst, now.timeIntervalSince(burst.start) < 0.3 {
+            origin = burst.origin
+        } else {
+            origin = brightness
+            burst = (now, brightness)
+        }
         brightness = value
         // O sensor de luz ambiente mexe aos pouquinhos; isso não merece aviso na ilha.
-        if delta >= 0.03, Date.now >= quietUntil { onChange?() }
+        if abs(value - origin) >= 0.03, now >= quietUntil { onChange?() }
     }
 
     private func read() -> Float? {
-        guard let api, let display = Self.builtInDisplay() else { return nil }
+        guard let api, let display else { return nil }
         return api.get(display)
     }
 
@@ -76,13 +102,34 @@ final class BrightnessController {
     }
 }
 
+/// Chamada pelo DisplayServices a cada mudança de brilho. É uma função solta porque a API só aceita
+/// um ponteiro de função C. Pode chegar fora da main thread, então só leva o valor até ela.
+private func brightnessDidChange(
+    center: CFNotificationCenter?,
+    observer: UnsafeMutableRawPointer?,
+    name: CFNotificationName?,
+    object: UnsafeRawPointer?,
+    userInfo: CFDictionary?
+) {
+    let value = ((userInfo as NSDictionary?)?["value"] as? NSNumber)?.floatValue
+    DispatchQueue.main.async {
+        MainActor.assumeIsolated { BrightnessController.current?.changed(to: value) }
+    }
+}
+
 /// As funções privadas de brilho, carregadas na hora: DisplayServices e, de reserva, CoreDisplay.
 private struct BrightnessAPI {
     let get: (CGDirectDisplayID) -> Float?
     let set: (CGDirectDisplayID, Float) -> Void
+    /// Pede ao macOS para avisar cada mudança de brilho. O CoreDisplay não tem isso;
+    /// com ele, só as teclas aparecem na ilha.
+    var observe: (CGDirectDisplayID) -> Void = { _ in }
+    var stopObserving: (CGDirectDisplayID) -> Void = { _ in }
 
     private typealias DisplayServicesGet = @convention(c) (CGDirectDisplayID, UnsafeMutablePointer<Float>) -> Int32
     private typealias DisplayServicesSet = @convention(c) (CGDirectDisplayID, Float) -> Int32
+    private typealias DisplayServicesRegister = @convention(c) (CGDirectDisplayID, CGDirectDisplayID, CFNotificationCallback) -> Int32
+    private typealias DisplayServicesUnregister = @convention(c) (CGDirectDisplayID, CGDirectDisplayID) -> Int32
     private typealias CoreDisplayGet = @convention(c) (CGDirectDisplayID) -> Double
     private typealias CoreDisplaySet = @convention(c) (CGDirectDisplayID, Double) -> Void
 
@@ -92,13 +139,22 @@ private struct BrightnessAPI {
            let setSymbol = dlsym(handle, "DisplayServicesSetBrightness") {
             let getBrightness = unsafeBitCast(getSymbol, to: DisplayServicesGet.self)
             let setBrightness = unsafeBitCast(setSymbol, to: DisplayServicesSet.self)
-            return BrightnessAPI(
+            var api = BrightnessAPI(
                 get: { display in
                     var value: Float = 0
                     return getBrightness(display, &value) == 0 ? value : nil
                 },
                 set: { display, value in _ = setBrightness(display, value) }
             )
+            if let registerSymbol = dlsym(handle, "DisplayServicesRegisterForBrightnessChangeNotifications"),
+               let unregisterSymbol = dlsym(handle, "DisplayServicesUnregisterForBrightnessChangeNotifications") {
+                let register = unsafeBitCast(registerSymbol, to: DisplayServicesRegister.self)
+                let unregister = unsafeBitCast(unregisterSymbol, to: DisplayServicesUnregister.self)
+                // A própria tela é o "observador"; o aviso volta com ela no lugar do ponteiro.
+                api.observe = { display in _ = register(display, display, brightnessDidChange) }
+                api.stopObserving = { display in _ = unregister(display, display) }
+            }
+            return api
         }
         if let handle = dlopen("/System/Library/Frameworks/CoreDisplay.framework/CoreDisplay", RTLD_LAZY),
            let getSymbol = dlsym(handle, "CoreDisplay_Display_GetUserBrightness"),

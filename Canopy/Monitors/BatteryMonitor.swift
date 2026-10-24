@@ -1,16 +1,21 @@
 import CanopyCore
 import Foundation
 import IOKit.ps
+import Observation
 
-/// Avisa quando o carregador é ligado ou desligado e quando a bateria fica fraca.
+/// Acompanha a bateria pelos avisos do macOS e conta quando o carregador é ligado ou desligado
+/// e quando a bateria fica fraca. Nada é lido de tempos em tempos.
 @MainActor
+@Observable
 final class BatteryMonitor {
-    var onEvent: ((BatteryEvent, BatterySnapshot) -> Void)?
-    private var last: BatterySnapshot?
-    private var source: CFRunLoopSource?
+    /// A última leitura da bateria interna; nil em Macs sem bateria.
+    private(set) var snapshot: BatterySnapshot?
+
+    @ObservationIgnored var onEvent: ((BatteryEvent, BatterySnapshot) -> Void)?
+    @ObservationIgnored private var source: CFRunLoopSource?
 
     func start() {
-        last = Self.read()
+        snapshot = Self.read()
         let context = Unmanaged.passUnretained(self).toOpaque()
         let callback: IOPowerSourceCallbackType = { context in
             guard let context else { return }
@@ -23,10 +28,13 @@ final class BatteryMonitor {
     }
 
     private func update() {
-        guard let snapshot = Self.read() else { return }
-        defer { last = snapshot }
-        if let event = BatteryEvent.between(last, snapshot) {
-            onEvent?(event, snapshot)
+        guard let fresh = Self.read() else { return }
+        let previous = snapshot
+        // O macOS avisa também mudanças que não aparecem aqui, como a temperatura da bateria.
+        guard fresh != previous else { return }
+        snapshot = fresh
+        if let event = BatteryEvent.between(previous, fresh) {
+            onEvent?(event, fresh)
         }
     }
 

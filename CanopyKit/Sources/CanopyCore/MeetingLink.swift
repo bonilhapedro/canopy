@@ -13,10 +13,14 @@ public enum MeetingLink {
         "meet.jit.si",
     ]
 
+    /// Criado uma vez só: montar o detector custa bem mais do que usá-lo, e ele é só de leitura.
+    nonisolated(unsafe) private static let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+
     /// O primeiro link de chamada encontrado, na ordem dos textos.
     public static func find(in texts: [String?]) -> URL? {
-        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else { return nil }
-        for text in texts.compactMap({ $0 }) where !text.isEmpty {
+        guard let detector else { return nil }
+        // Notas que não citam nenhum dos serviços nem passam pelo detector.
+        for text in texts.compactMap({ $0 }) where mentionsService(text) {
             let range = NSRange(text.startIndex..., in: text)
             for match in detector.matches(in: text, range: range) {
                 guard let url = match.url, isMeeting(url) else { continue }
@@ -24,6 +28,11 @@ public enum MeetingLink {
             }
         }
         return nil
+    }
+
+    private static func mentionsService(_ text: String) -> Bool {
+        let lowered = text.lowercased()
+        return hosts.contains { lowered.contains($0) }
     }
 
     public static func isMeeting(_ url: URL) -> Bool {
