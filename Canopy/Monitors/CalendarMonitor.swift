@@ -59,7 +59,8 @@ final class CalendarMonitor {
     }
 
     func requestAccess() {
-        store.requestFullAccessToEvents { _, _ in
+        // A resposta chega fora da main thread; o @Sendable evita que o Swift 6 presuma o contrário.
+        store.requestFullAccessToEvents { @Sendable _, _ in
             Task { @MainActor in
                 self.updateAccess()
                 self.refresh()

@@ -24,7 +24,8 @@ final class TouchIDAuthenticator {
         context.localizedFallbackTitle = ""
         self.context = context
         set(.scanning)
-        context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { success, _ in
+        // A resposta chega numa fila do sistema; o @Sendable evita que o Swift 6 presuma a main thread.
+        context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { @Sendable success, _ in
             Task { @MainActor in self.finish(success: success) }
         }
     }
