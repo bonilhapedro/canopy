@@ -131,7 +131,7 @@ final class MusicController {
         )
         nowPlaying = track
         artworkKey = track.trackKey
-        setArtwork(Self.benchmarkArtwork().flatMap(NSImage.init(data:)))
+        if let data = Self.benchmarkArtwork() { show(artwork: data, for: track.trackKey) }
         onChange?()
     }
 
@@ -198,7 +198,7 @@ final class MusicController {
 
     private func currentPosition(of player: NowPlaying.Player) -> TimeInterval? {
         guard isRunning(player) else { return nil }
-        return AppleScriptRunner.run("tell application \"\(player.scriptName)\" to player position")?.doubleValue
+        return AppleScriptRunner.run("tell application \"\(player.scriptName)\" to player position", keepCompiled: true)?.doubleValue
     }
 
     /// Ao abrir o Canopy, a música já pode estar tocando: pergunta direto aos players abertos.
@@ -254,45 +254,60 @@ final class MusicController {
         case .spotify:
             "tell application \"Spotify\" to return {shuffling, sound volume, repeating}"
         }
-        guard let result = AppleScriptRunner.run(script), result.numberOfItems >= 3 else { return }
-        isShuffling = result.atIndex(1)?.booleanValue ?? false
-        playerVolume = result.atIndex(2).map { Int($0.int32Value) }
+        guard let result = AppleScriptRunner.run(script, keepCompiled: true), result.numberOfItems >= 3 else { return }
+        let shuffling = result.atIndex(1)?.booleanValue ?? false
+        let volume = result.atIndex(2).map { Int($0.int32Value) }
+        let repeating: RepeatMode
+        let favorite: Bool?
         switch player {
         case .appleMusic:
-            repeatMode = result.atIndex(3)?.stringValue.flatMap(RepeatMode.init(rawValue:)) ?? .off
+            repeating = result.atIndex(3)?.stringValue.flatMap(RepeatMode.init(rawValue:)) ?? .off
             // 'msng' é o "missing value" do AppleScript: a faixa não deixa favoritar.
-            let favorite = result.atIndex(4)
-            isFavorite = favorite.flatMap { $0.descriptorType == Self.missingValue ? nil : $0.booleanValue }
+            favorite = result.atIndex(4).flatMap { $0.descriptorType == Self.missingValue ? nil : $0.booleanValue }
         case .spotify:
-            repeatMode = result.atIndex(3)?.booleanValue == true ? .all : .off
-            isFavorite = nil
+            repeating = result.atIndex(3)?.booleanValue == true ? .all : .off
+            favorite = nil
         }
+        // Cada escrita avisa as views, mesmo com o mesmo valor; quase sempre nada mudou.
+        if isShuffling != shuffling { isShuffling = shuffling }
+        if playerVolume != volume { playerVolume = volume }
+        if repeatMode != repeating { repeatMode = repeating }
+        if isFavorite != favorite { isFavorite = favorite }
     }
 
     private static let missingValue: DescType = 0x6D73_6E67
 
-    private func setArtwork(_ image: NSImage?) {
-        artwork = image
-        accent = image.flatMap(ArtworkPalette.accent(of:)).map { Color(nsColor: $0) }
+    private func setArtwork(_ processed: ProcessedArtwork?) {
+        artwork = processed.map { NSImage(cgImage: $0.image, size: .zero) }
+        accent = processed?.average.map { Color(nsColor: ArtworkPalette.accent(fromAverage: $0)) }
     }
 
     private func loadArtwork(for track: NowPlaying) {
         guard isRunning(track.player) else { return }
+        let key = track.trackKey
         switch track.player {
         case .appleMusic:
-            let data = AppleScriptRunner.run("tell application \"Music\" to get data of artwork 1 of current track")?.data
-            setArtwork(data.flatMap(NSImage.init(data:)))
+            guard let data = AppleScriptRunner.run("tell application \"Music\" to get data of artwork 1 of current track", keepCompiled: true)?.data
+            else { return }
+            show(artwork: data, for: key)
         case .spotify:
-            guard let address = AppleScriptRunner.run("tell application \"Spotify\" to get artwork url of current track")?.stringValue,
+            guard let address = AppleScriptRunner.run("tell application \"Spotify\" to get artwork url of current track", keepCompiled: true)?.stringValue,
                   let url = URL(string: address)
             else { return }
-            let key = track.trackKey
             Task { [weak self] in
-                guard let (data, _) = try? await URLSession.shared.data(from: url) else { return }
-                // A faixa pode ter mudado enquanto a capa baixava.
-                guard let self, self.artworkKey == key else { return }
-                self.setArtwork(NSImage(data: data))
+                guard let (data, _) = try? await URLSession.canopy.data(from: url) else { return }
+                self?.show(artwork: data, for: key)
             }
+        }
+    }
+
+    /// A capa chega com até 3000 pixels; reduzir e tirar a cor fica fora da main thread.
+    private func show(artwork data: Data, for key: String) {
+        Task { [weak self] in
+            let processed = await Task.detached(priority: .utility) { ArtworkPalette.process(data) }.value
+            // A faixa pode ter mudado enquanto a capa baixava ou era reduzida.
+            guard let self, self.artworkKey == key else { return }
+            self.setArtwork(processed)
         }
     }
 }
