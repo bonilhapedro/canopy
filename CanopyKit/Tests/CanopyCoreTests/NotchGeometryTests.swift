@@ -48,4 +48,34 @@ struct NotchGeometryTests {
         #expect(frame.midX == notch.midX)
         #expect(frame.maxY == notch.maxY)
     }
+
+    @Test func pillIsSmallerWhenClosedOnScreensWithoutNotch() {
+        let layout = IslandLayout(notch: CGSize(width: 180, height: 24), hasNotch: false)
+        let closed = layout.size(for: .closed)
+        #expect(closed.width < 180)
+        #expect(closed.height < 24)
+        #expect(layout.size(for: .compact).height == 24)
+    }
+}
+
+struct ClosedAdjustmentTests {
+    @Test func userAdjustmentResizesTheIslandAtRest() {
+        let layout = IslandLayout(notch: CGSize(width: 180, height: 24), hasNotch: false, closedAdjustment: CGSize(width: 20, height: -4))
+        #expect(layout.size(for: .closed) == CGSize(width: 144, height: 14))
+        // A compacta, com música tocando, também muda.
+        #expect(layout.size(for: .compact) == CGSize(width: 180 + 2 * IslandLayout.compactWing + 20, height: 20))
+        // A aberta não.
+        #expect(layout.size(for: .expanded) == IslandLayout(notch: CGSize(width: 180, height: 24), hasNotch: false).size(for: .expanded))
+    }
+
+    @Test func compactKeepsTheRealNotchHeight() {
+        let layout = IslandLayout(notch: CGSize(width: 185, height: 32), hasNotch: true, closedAdjustment: CGSize(width: 10, height: 6))
+        #expect(layout.size(for: .compact).height == 32)
+        #expect(layout.size(for: .compact).width == 185 + 2 * IslandLayout.compactWing + 10)
+    }
+
+    @Test func adjustmentNeverMakesItVanish() {
+        let layout = IslandLayout(notch: CGSize(width: 180, height: 24), hasNotch: false, closedAdjustment: CGSize(width: -500, height: -500))
+        #expect(layout.size(for: .closed) == IslandLayout.closedMinimum)
+    }
 }

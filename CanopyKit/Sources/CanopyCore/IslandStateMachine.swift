@@ -6,6 +6,15 @@ public enum IslandPhase: Sendable, Equatable {
     case compact
     /// Painel aberto pelo mouse ou por um clique.
     case expanded
+
+    /// Ordem de tamanho: fechado < compacto < expandido.
+    public var order: Int {
+        switch self {
+        case .closed: 0
+        case .compact: 1
+        case .expanded: 2
+        }
+    }
 }
 
 public enum IslandEvent: Sendable, Equatable {
@@ -22,6 +31,9 @@ public struct IslandStateMachine: Sendable, Equatable {
     public private(set) var hasActivity = false
     /// Aberto por clique: continua aberto quando o mouse sai.
     public private(set) var isPinned = false
+    /// Se a última troca de estado aumentou a ilha. Crescer pode quicar; encolher não,
+    /// porque o quique passaria do tamanho final e a ilha sumiria por um instante.
+    public private(set) var lastChangeGrew = false
 
     public init() {}
 
@@ -30,6 +42,10 @@ public struct IslandStateMachine: Sendable, Equatable {
     }
 
     public mutating func handle(_ event: IslandEvent) {
+        let previous = phase
+        defer {
+            if phase != previous { lastChangeGrew = phase.order > previous.order }
+        }
         switch event {
         case .pointerEntered:
             phase = .expanded
