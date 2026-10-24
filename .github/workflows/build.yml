@@ -1,0 +1,27 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versão do Xcode
+        run: xcodebuild -version
+
+      - name: Testes do CanopyKit
+        run: swift test --package-path CanopyKit
+
+      - name: Build do app
+        run: |
+          xcodebuild build \
+            -project Canopy.xcodeproj \
+            -scheme Canopy \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO
