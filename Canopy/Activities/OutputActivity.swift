@@ -40,7 +40,7 @@ final class OutputActivity: IslandActivity {
                     Text("Saída de áudio")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.55))
-                    MarqueeText(text: name, font: .system(size: 22, weight: .bold))
+                    MarqueeText(text: name, size: 22, weight: .bold)
                     Label("Conectado", systemImage: "checkmark.circle.fill")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.green)

@@ -48,7 +48,7 @@ private struct PrivacyIcons: View {
             }
         }
         .font(.system(size: size, weight: .semibold))
-        .symbolEffect(.pulse, options: .repeating)
+        // Parado, como o ponto do iPhone: uma chamada longa não deve deixar a ilha animando o tempo todo.
         .animation(.bouncy, value: privacy.isMicrophoneInUse)
         .animation(.bouncy, value: privacy.isCameraInUse)
     }

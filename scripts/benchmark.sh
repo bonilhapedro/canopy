@@ -58,10 +58,30 @@ for scenario in "${SCENARIOS[@]}"; do
 
   echo "=== $scenario"
   grep '^benchmark:' "$log" || true
-  # Onde a CPU vai, para os cenários que animam.
+  # Onde a CPU vai: os ramos da thread principal com pelo menos 1% das amostras.
   if [[ " $SAMPLE " == *" $scenario "* ]]; then
     sample "$pid" 3 -mayDie -file "$BUILD/$scenario.sample.txt" >/dev/null 2>&1 || true
-    awk '/^Sort by top of stack/ { show = 1 } show && n < 18 { print; n++ }' "$BUILD/$scenario.sample.txt" 2>/dev/null || true
+    awk '
+      /^Call graph:/ { graph = 1; next }
+      graph && /^$/ { graph = 0 }
+      graph && /^    [0-9]+ Thread_/ {
+        main = ($0 ~ /com\.apple\.main-thread/)
+        if (main) { total = $1; shown = 0; print }
+        next
+      }
+      graph && main && shown < 45 {
+        line = $0
+        count = line
+        sub(/^[ +!:|]*/, "", count)
+        split(count, parts, " ")
+        if (parts[1] + 0 >= total / 100) {
+          sub(/ +\[0x[0-9a-f,]+\].*$/, "", line)
+          sub(/ \+ [0-9]+$/, "", line)
+          print substr(line, 1, 160)
+          shown++
+        }
+      }
+    ' "$BUILD/$scenario.sample.txt" 2>/dev/null || true
   fi
   echo "$summary" | grep -E '^(MALLOC|IOSurface|IOAccelerator|CoreAnimation|__DATA|TOTAL)' | head -12 || true
 

@@ -31,15 +31,20 @@ struct IslandView: View {
         }
         .frame(width: size.width, height: size.height)
         .padding(.horizontal, metrics.ear)
+        .clipShape(shape)
         .background {
             ZStack(alignment: .top) {
                 // Liquid Glass só na ilha aberta: fechada e compacta, ela precisa ser preta
-                // para se confundir com o notch.
-                Color.clear
-                    .glassEffect(.clear.tint(Color.black.opacity(0.06 + 0.6 * glassDarkness)), in: shape)
-                    .opacity(usesGlass ? 1 : 0)
-                Color.black
-                    .opacity(usesGlass ? 0 : 1)
+                // para se confundir com o notch. Fora de uso o vidro sai da tela de vez,
+                // em vez de ficar lá invisível sendo calculado.
+                if usesGlass {
+                    Color.clear
+                        .glassEffect(.clear.tint(Color.black.opacity(0.06 + 0.6 * glassDarkness)), in: shape)
+                        .transition(.opacity)
+                } else {
+                    Color.black
+                        .transition(.opacity)
+                }
                 if phase == .expanded {
                     if usesGlass {
                         // Um brilho leve na cor da atividade, sem tapar o que está atrás do vidro.
@@ -69,8 +74,13 @@ struct IslandView: View {
                     .transition(.opacity)
                 }
             }
+            .clipShape(shape)
+            // A sombra sai só do fundo, que fica parado: o conteúdo que anima por cima,
+            // como o equalizador, não obriga a sombra a ser refeita a cada quadro.
+            // Curta, para caber na margem da janela; maior que isso ela era cortada
+            // nas laterais e virava uma "aura" de borda reta.
+            .shadow(color: .black.opacity(phase == .expanded ? 0.3 : 0), radius: 12, y: 6)
         }
-        .clipShape(shape)
         .overlay {
             // Borda fina de vidro: clara embaixo, onde a luz bate, e some no topo preto.
             shape
@@ -90,9 +100,6 @@ struct IslandView: View {
             }
         }
         .contentShape(shape)
-        // Sombra curta, que cabe na margem da janela; maior que isso ela era cortada
-        // nas laterais e virava uma "aura" de borda reta.
-        .shadow(color: .black.opacity(phase == .expanded ? 0.3 : 0), radius: 12, y: 6)
         .onHover { coordinator.pointer(inside: $0) }
         .onContinuousHover { hover in
             switch hover {
@@ -247,18 +254,19 @@ private struct IslandHeader: View {
 }
 
 /// Bateria pequena no canto direito, como na barra de status do iPhone.
+/// Muda quando o macOS avisa que a bateria mudou, sem ler nada de tempos em tempos.
 private struct HeaderBattery: View {
+    @Environment(BatteryMonitor.self) private var monitor
+
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { _ in
-            if let battery = BatteryMonitor.read() {
-                let tint: Color = battery.isCharging ? .green : battery.percent <= 20 ? .red : .white
-                HStack(spacing: 5) {
-                    Text("\(battery.percent)%")
-                        .font(.system(size: 11, weight: .semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(.white.opacity(0.75))
-                    BatteryGlyph(percent: battery.percent, isCharging: battery.isCharging, tint: tint, width: 22)
-                }
+        if let battery = monitor.snapshot {
+            let tint: Color = battery.isCharging ? .green : battery.percent <= 20 ? .red : .white
+            HStack(spacing: 5) {
+                Text("\(battery.percent)%")
+                    .font(.system(size: 11, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.75))
+                BatteryGlyph(percent: battery.percent, isCharging: battery.isCharging, tint: tint, width: 22)
             }
         }
     }
