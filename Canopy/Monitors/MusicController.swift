@@ -8,6 +8,9 @@ import Observation
 final class MusicController {
     private(set) var nowPlaying: NowPlaying?
     private(set) var artwork: NSImage?
+    private(set) var isShuffling = false
+    /// Volume do próprio player, de 0 a 100, independente do volume do Mac.
+    private(set) var playerVolume: Int?
 
     @ObservationIgnored var onChange: (() -> Void)?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -35,6 +38,33 @@ final class MusicController {
     func nextTrack() { send("next track") }
     func previousTrack() { send("previous track") }
 
+    func toggleShuffle() {
+        guard let player = nowPlaying?.player else { return }
+        send("set \(player.shuffleProperty) to \(!isShuffling)")
+        refreshPlayerSettings()
+    }
+
+    func setPlayerVolume(_ volume: Int) {
+        let clamped = min(100, max(0, volume))
+        send("set sound volume to \(clamped)")
+        playerVolume = clamped
+    }
+
+    func changePlayerVolume(by step: Int) {
+        guard let playerVolume else { return }
+        setPlayerVolume(playerVolume + step)
+    }
+
+    /// Pula para um ponto da faixa, em segundos.
+    func seek(to position: TimeInterval) {
+        guard var track = nowPlaying else { return }
+        send("set player position to \(position)")
+        // Atualiza na hora, sem esperar a próxima notificação do player.
+        track.position = position
+        track.capturedAt = .now
+        nowPlaying = track
+    }
+
     // MARK: - Notificações
 
     private func handle(player: NowPlaying.Player, track: NowPlaying?) {
@@ -56,6 +86,7 @@ final class MusicController {
             artwork = nil
             if let track { loadArtwork(for: track) }
         }
+        refreshPlayerSettings()
         onChange?()
     }
 
@@ -108,6 +139,18 @@ final class MusicController {
         }
     }
 
+    /// Lê o modo aleatório e o volume do player, que podem ser mudados no próprio app.
+    private func refreshPlayerSettings() {
+        guard let player = nowPlaying?.player, isRunning(player),
+              let result = AppleScriptRunner.run(
+                  "tell application \"\(player.scriptName)\" to return {\(player.shuffleProperty), sound volume}"
+              ),
+              result.numberOfItems == 2
+        else { return }
+        isShuffling = result.atIndex(1)?.booleanValue ?? false
+        playerVolume = result.atIndex(2).map { Int($0.int32Value) }
+    }
+
     private func loadArtwork(for track: NowPlaying) {
         guard isRunning(track.player) else { return }
         switch track.player {
@@ -134,6 +177,13 @@ private extension NowPlaying.Player {
         switch self {
         case .appleMusic: "Music"
         case .spotify: "Spotify"
+        }
+    }
+
+    var shuffleProperty: String {
+        switch self {
+        case .appleMusic: "shuffle enabled"
+        case .spotify: "shuffling"
         }
     }
 }

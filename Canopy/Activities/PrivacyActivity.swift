@@ -15,9 +15,7 @@ final class PrivacyActivity: IslandActivity {
     }
 
     var compactLeading: AnyView { AnyView(PrivacyIcons(privacy: privacy)) }
-    var compactTrailing: AnyView {
-        AnyView(Text("Em uso").font(.caption).foregroundStyle(.white.opacity(0.8)))
-    }
+    var compactTrailing: AnyView { AnyView(EmptyView()) }
     var minimal: AnyView { AnyView(PrivacyIcons(privacy: privacy)) }
     var expanded: AnyView { AnyView(PrivacyExpandedView(privacy: privacy)) }
 }
@@ -42,16 +40,14 @@ private struct PrivacyExpandedView: View {
     let privacy: PrivacyMonitor
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        HStack(spacing: 18) {
             if privacy.isMicrophoneInUse {
-                Label("Microfone em uso", systemImage: "mic.fill")
-                    .foregroundStyle(.orange)
+                Image(systemName: "mic.fill").foregroundStyle(.orange)
             }
             if privacy.isCameraInUse {
-                Label("Câmera em uso", systemImage: "video.fill")
-                    .foregroundStyle(.green)
+                Image(systemName: "video.fill").foregroundStyle(.green)
             }
         }
-        .font(.headline)
+        .font(.system(size: 30))
     }
 }

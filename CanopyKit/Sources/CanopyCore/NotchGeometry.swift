@@ -62,7 +62,7 @@ public struct IslandLayout: Sendable, Equatable {
     /// Quanto a ilha compacta cresce para cada lado do notch.
     public static let compactWing: CGFloat = 76
     public static let expandedMinWidth: CGFloat = 520
-    public static let expandedContentHeight: CGFloat = 150
+    public static let expandedContentHeight: CGFloat = 176
     /// Margem da janela em volta da ilha expandida, para a sombra não ser cortada.
     public static let shadowPadding: CGFloat = 24
 
