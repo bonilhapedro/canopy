@@ -5,6 +5,7 @@ import SwiftUI
 struct IslandView: View {
     @Environment(IslandCoordinator.self) private var coordinator
     @AppStorage(SettingsKey.glassIsland) private var glassIsland = true
+    @AppStorage(SettingsKey.glassDarkness) private var glassDarkness = 0.25
 
     var body: some View {
         let phase = coordinator.phase
@@ -30,37 +31,56 @@ struct IslandView: View {
                 // Liquid Glass só na ilha aberta: fechada e compacta, ela precisa ser preta
                 // para se confundir com o notch.
                 Color.clear
-                    .glassEffect(.regular.tint(Color.black.opacity(0.35)), in: shape)
+                    .glassEffect(.clear.tint(Color.black.opacity(0.06 + 0.6 * glassDarkness)), in: shape)
                     .opacity(usesGlass ? 1 : 0)
                 Color.black
                     .opacity(usesGlass ? 0 : 1)
                 if phase == .expanded {
-                    coordinator.primary?.backdrop
-                        .opacity(usesGlass ? 0.65 : 1)
+                    if usesGlass {
+                        // Um brilho leve na cor da capa, sem tapar o que está atrás do vidro.
+                        RadialGradient(
+                            colors: [glow.opacity(0.16), glow.opacity(0)],
+                            center: .bottomLeading,
+                            startRadius: 10,
+                            endRadius: size.width * 0.8
+                        )
+                        .transition(.opacity)
+                    } else {
+                        coordinator.primary?.backdrop
+                    }
                 }
                 if usesGlass {
-                    // Faixa preta no topo, para o notch de verdade continuar parecendo parte da ilha.
+                    // Preto no topo que se dissolve no vidro, para o notch de verdade continuar parecendo parte da ilha.
                     LinearGradient(
                         stops: [
                             .init(color: .black, location: 0),
-                            .init(color: .black, location: 0.55),
+                            .init(color: .black, location: 0.45),
                             .init(color: .black.opacity(0), location: 1),
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(height: coordinator.layout.notch.height + 22)
+                    .frame(height: coordinator.layout.notch.height + 30)
                     .transition(.opacity)
                 }
             }
         }
         .clipShape(shape)
         .overlay {
+            // Borda fina de vidro: clara embaixo, onde a luz bate, e some no topo preto.
             shape
-                .stroke(Color.white.opacity(phase == .expanded ? 0.09 : 0), lineWidth: 1)
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0), glow.opacity(0.35), Color.white.opacity(0.28)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+                .opacity(usesGlass ? 1 : 0)
         }
         .contentShape(shape)
-        .shadow(color: .black.opacity(phase == .expanded ? 0.55 : 0), radius: 18, y: 8)
+        .shadow(color: .black.opacity(phase == .expanded ? 0.35 : 0), radius: 18, y: 8)
         .shadow(color: glow.opacity(phase == .expanded ? 0.28 : 0), radius: 24)
         .onHover { coordinator.pointer(inside: $0) }
         .onTapGesture { coordinator.click() }
@@ -112,7 +132,7 @@ struct IslandView: View {
                         activity.minimal
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .glassEffect(.regular, in: Capsule())
+                            .glassEffect(.clear, in: Capsule())
                     }
                 }
             }

@@ -13,6 +13,7 @@ struct CanopyApp: App {
         Settings {
             SettingsView()
                 .environment(appDelegate.coordinator)
+                .environment(appDelegate.touchID)
         }
     }
 }

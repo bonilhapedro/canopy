@@ -84,89 +84,115 @@ private struct ArtworkBackdrop: View {
 /// Barrinhas na cor da capa que pulam enquanto a música toca.
 private struct EqualizerBars: View {
     let music: MusicController
-    private static let speeds: [Double] = [5.1, 7.3, 6.2, 8.4]
+    var bars = 4
+    var barWidth: CGFloat = 3
+    var maxHeight: CGFloat = 16
 
     var body: some View {
         let isPlaying = music.nowPlaying?.isPlaying ?? false
         let tint = music.accent ?? .white
         TimelineView(.animation(minimumInterval: 1 / 30, paused: !isPlaying)) { context in
-            HStack(alignment: .center, spacing: 2.5) {
-                ForEach(Array(Self.speeds.enumerated()), id: \.offset) { index, speed in
+            HStack(alignment: .center, spacing: barWidth * 0.8) {
+                ForEach(0..<bars, id: \.self) { index in
                     Capsule()
                         .fill(tint.gradient)
-                        .frame(width: 3, height: height(index: index, speed: speed, at: context.date, isPlaying: isPlaying))
+                        .frame(width: barWidth, height: height(index: index, at: context.date, isPlaying: isPlaying))
                 }
             }
-            .frame(width: 22, height: 16)
+            .frame(height: maxHeight)
             .shadow(color: tint.opacity(0.6), radius: 4)
         }
     }
 
-    private func height(index: Int, speed: Double, at date: Date, isPlaying: Bool) -> CGFloat {
-        guard isPlaying else { return 3 }
+    private func height(index: Int, at date: Date, isPlaying: Bool) -> CGFloat {
+        let floor = barWidth
+        guard isPlaying else { return floor }
+        // Cada barra tem a sua velocidade, para a onda não parecer repetida.
+        let speed = 5 + Double((index * 37) % 40) / 10
         let time = date.timeIntervalSinceReferenceDate
         let wave = abs(sin(time * speed + Double(index))) * 0.65 + abs(sin(time * speed * 0.37)) * 0.35
-        return 3 + 13 * wave
+        return floor + (maxHeight - floor) * wave
     }
 }
 
+/// Player aberto no layout do Canopy original: capa e faixa em cima, onda à direita,
+/// barra de progresso e uma fileira de glifos soltos sobre o vidro.
 private struct MusicExpandedView: View {
     let music: MusicController
+    @State private var showsVolume = false
 
     var body: some View {
         if let track = music.nowPlaying {
             let tint = music.accent ?? .white
-            HStack(spacing: 18) {
-                ArtworkView(music: music, size: 108, cornerRadius: 16)
-                    .shadow(color: tint.opacity(0.45), radius: 16, y: 6)
-                    .scaleEffect(track.isPlaying ? 1 : 0.9)
-                    .animation(.bouncy(duration: 0.4), value: track.isPlaying)
+            VStack(spacing: 10) {
+                HStack(spacing: 12) {
+                    ArtworkView(music: music, size: 56, cornerRadius: 12)
+                        .shadow(color: tint.opacity(0.45), radius: 12, y: 4)
+                        .scaleEffect(track.isPlaying ? 1 : 0.92)
+                        .animation(.bouncy(duration: 0.4), value: track.isPlaying)
 
-                VStack(alignment: .leading, spacing: 7) {
-                    VStack(alignment: .leading, spacing: 1) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(track.title)
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.system(size: 15, weight: .bold))
                             .lineLimit(1)
-                            .contentTransition(.opacity)
                         Text(track.artist)
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.6))
+                            .foregroundStyle(.white.opacity(0.55))
                             .lineLimit(1)
                     }
+                    .contentTransition(.opacity)
                     .animation(.easeInOut(duration: 0.25), value: track.trackKey)
 
-                    SeekBar(music: music, track: track, tint: tint)
+                    Spacer(minLength: 8)
 
-                    GlassEffectContainer(spacing: 10) {
-                        HStack(spacing: 6) {
-                            Button(action: music.toggleShuffle) {
-                                Image(systemName: "shuffle")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundStyle(music.isShuffling ? tint : Color.white.opacity(0.55))
-                            }
-                            .buttonStyle(IslandButtonStyle(size: 30))
-                            Spacer(minLength: 0)
-                            Button(action: music.previousTrack) {
-                                Image(systemName: "backward.fill").font(.system(size: 17))
-                            }
-                            .buttonStyle(IslandButtonStyle(size: 34))
-                            Button(action: music.playPause) {
-                                Image(systemName: track.isPlaying ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 24))
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
-                            .buttonStyle(IslandButtonStyle(size: 42))
-                            Button(action: music.nextTrack) {
-                                Image(systemName: "forward.fill").font(.system(size: 17))
-                            }
-                            .buttonStyle(IslandButtonStyle(size: 34))
-                            Spacer(minLength: 0)
-                            // Mantém os três botões do meio centralizados.
-                            Color.clear.frame(width: 30, height: 1)
-                        }
+                    EqualizerBars(music: music, bars: 6, barWidth: 3.5, maxHeight: 24)
+                }
+
+                ZStack {
+                    if showsVolume {
+                        PlayerVolumeRow(music: music, tint: tint)
+                            .transition(.blurReplace)
+                    } else {
+                        SeekBar(music: music, track: track, tint: tint)
+                            .transition(.blurReplace)
                     }
+                }
+                .frame(height: 24)
+                .animation(.smooth(duration: 0.25), value: showsVolume)
 
-                    PlayerVolumeRow(music: music, tint: tint)
+                GlassEffectContainer(spacing: 8) {
+                    HStack(spacing: 0) {
+                        Button(action: music.toggleShuffle) {
+                            Image(systemName: "shuffle")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(music.isShuffling ? tint : Color.white.opacity(0.5))
+                        }
+                        .buttonStyle(IslandButtonStyle(size: 32))
+                        Spacer(minLength: 0)
+                        Button(action: music.previousTrack) {
+                            Image(systemName: "backward.fill").font(.system(size: 20))
+                        }
+                        .buttonStyle(IslandButtonStyle(size: 38))
+                        Button(action: music.playPause) {
+                            Image(systemName: track.isPlaying ? "pause.fill" : "play.fill")
+                                .font(.system(size: 28))
+                                .contentTransition(.symbolEffect(.replace))
+                        }
+                        .buttonStyle(IslandButtonStyle(size: 44))
+                        .padding(.horizontal, 14)
+                        Button(action: music.nextTrack) {
+                            Image(systemName: "forward.fill").font(.system(size: 20))
+                        }
+                        .buttonStyle(IslandButtonStyle(size: 38))
+                        Spacer(minLength: 0)
+                        Button { showsVolume.toggle() } label: {
+                            Image(systemName: showsVolume ? "speaker.wave.2.fill" : "hifispeaker.fill")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(showsVolume ? tint : Color.white.opacity(0.85))
+                                .contentTransition(.symbolEffect(.replace))
+                        }
+                        .buttonStyle(IslandButtonStyle(size: 32))
+                    }
                 }
             }
             .foregroundStyle(.white)
@@ -194,7 +220,7 @@ private struct SeekBar: View {
                     .frame(width: 36, alignment: .leading)
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(Color.white.opacity(0.2))
+                        Capsule().fill(Color.white.opacity(0.18))
                         Capsule()
                             .fill(LinearGradient(colors: [tint.opacity(0.7), tint], startPoint: .leading, endPoint: .trailing))
                             .frame(width: max(isActive ? 6 : 4, geometry.size.width * fraction))
@@ -217,7 +243,7 @@ private struct SeekBar: View {
                     .onHover { isHovered = $0 }
                 }
                 .frame(height: 14)
-                Text("-" + NowPlaying.timestamp(max(0, duration - fraction * duration)))
+                Text(NowPlaying.timestamp(duration))
                     .frame(width: 40, alignment: .trailing)
             }
             .font(.system(size: 10, weight: .semibold).monospacedDigit())
@@ -239,7 +265,7 @@ private struct PlayerVolumeRow: View {
                 Button { music.changePlayerVolume(by: -10) } label: {
                     Image(systemName: "speaker.fill").font(.system(size: 10, weight: .bold))
                 }
-                .buttonStyle(IslandButtonStyle(size: 22))
+                .buttonStyle(IslandButtonStyle(size: 24))
                 Slider(
                     value: Binding(
                         get: { draft ?? Double(volume) },
@@ -258,7 +284,7 @@ private struct PlayerVolumeRow: View {
                 Button { music.changePlayerVolume(by: 10) } label: {
                     Image(systemName: "speaker.wave.3.fill").font(.system(size: 10, weight: .bold))
                 }
-                .buttonStyle(IslandButtonStyle(size: 22))
+                .buttonStyle(IslandButtonStyle(size: 24))
             }
             .foregroundStyle(.white.opacity(0.6))
         }

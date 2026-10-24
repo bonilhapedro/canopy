@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let battery = BatteryMonitor()
     private let privacy = PrivacyMonitor()
     private let volume = VolumeMonitor()
+    private let lock = LockMonitor()
+    let touchID = TouchIDAuthenticator()
 
     private var windowController: NotchWindowController?
     private var screenObserver: NSObjectProtocol?
@@ -52,6 +54,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             coordinator.flash(VolumeActivity(volume: volume), for: .seconds(1.5))
         }
         volume.start()
+
+        lock.onUnlock = { [weak self] in
+            guard UserDefaults.standard.object(forKey: SettingsKey.unlockAnimation) as? Bool ?? true else { return }
+            self?.coordinator.flash(UnlockActivity(), for: .seconds(1.8))
+            if UserDefaults.standard.bool(forKey: SettingsKey.unlockSound) {
+                NSSound(named: "Pop")?.play()
+            }
+        }
+        lock.start()
+
+        touchID.onChange = { [weak self] in self?.touchIDChanged() }
+    }
+
+    /// Enquanto lê o dedo, a ilha fica com a digital; o resultado aparece por um instante e sai.
+    private func touchIDChanged() {
+        switch touchID.state {
+        case .idle:
+            coordinator.end(id: TouchIDActivity.activityID)
+        case .scanning:
+            coordinator.start(TouchIDActivity(touchID: touchID))
+        case .success, .failure:
+            coordinator.flash(TouchIDActivity(touchID: touchID), for: .seconds(1.6))
+        }
     }
 
     /// Pausada, a música continua na ilha por 30 segundos antes de sair.
