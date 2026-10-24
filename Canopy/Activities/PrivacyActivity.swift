@@ -14,40 +14,60 @@ final class PrivacyActivity: IslandActivity {
         self.privacy = privacy
     }
 
-    var compactLeading: AnyView { AnyView(PrivacyIcons(privacy: privacy)) }
-    var compactTrailing: AnyView { AnyView(EmptyView()) }
-    var minimal: AnyView { AnyView(PrivacyIcons(privacy: privacy)) }
-    var expanded: AnyView { AnyView(PrivacyExpandedView(privacy: privacy)) }
+    var compactLeading: AnyView { AnyView(PrivacyIcons(privacy: privacy, size: 12)) }
+    var compactTrailing: AnyView { AnyView(PrivacyDots(privacy: privacy)) }
+    var minimal: AnyView { AnyView(PrivacyIcons(privacy: privacy, size: 11)) }
+    var accent: Color? { privacy.isCameraInUse ? .green : .orange }
+
+    var expanded: AnyView {
+        AnyView(
+            PrivacyIcons(privacy: privacy, size: 34)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        )
+    }
 }
 
 private struct PrivacyIcons: View {
     let privacy: PrivacyMonitor
+    let size: CGFloat
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: size * 0.6) {
             if privacy.isMicrophoneInUse {
-                Image(systemName: "mic.fill").foregroundStyle(.orange)
+                Image(systemName: "mic.fill")
+                    .foregroundStyle(.orange)
+                    .shadow(color: .orange.opacity(0.6), radius: size * 0.3)
+                    .transition(.scale.combined(with: .opacity))
             }
             if privacy.isCameraInUse {
-                Image(systemName: "video.fill").foregroundStyle(.green)
+                Image(systemName: "video.fill")
+                    .foregroundStyle(.green)
+                    .shadow(color: .green.opacity(0.6), radius: size * 0.3)
+                    .transition(.scale.combined(with: .opacity))
             }
         }
-        .font(.caption)
+        .font(.system(size: size, weight: .semibold))
+        .symbolEffect(.pulse, options: .repeating)
+        .animation(.bouncy, value: privacy.isMicrophoneInUse)
+        .animation(.bouncy, value: privacy.isCameraInUse)
     }
 }
 
-private struct PrivacyExpandedView: View {
+/// Os pontinhos coloridos que o macOS também mostra na barra de menus.
+private struct PrivacyDots: View {
     let privacy: PrivacyMonitor
 
     var body: some View {
-        HStack(spacing: 18) {
-            if privacy.isMicrophoneInUse {
-                Image(systemName: "mic.fill").foregroundStyle(.orange)
-            }
-            if privacy.isCameraInUse {
-                Image(systemName: "video.fill").foregroundStyle(.green)
-            }
+        HStack(spacing: 4) {
+            if privacy.isMicrophoneInUse { dot(.orange) }
+            if privacy.isCameraInUse { dot(.green) }
         }
-        .font(.system(size: 30))
+    }
+
+    private func dot(_ color: Color) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: 7, height: 7)
+            .shadow(color: color, radius: 3)
     }
 }

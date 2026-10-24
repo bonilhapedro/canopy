@@ -16,14 +16,6 @@ final class BatteryActivity: IslandActivity {
         self.snapshot = snapshot
     }
 
-    private var symbol: String {
-        switch event {
-        case .pluggedIn: "battery.100percent.bolt"
-        case .unplugged: "battery.75percent"
-        case .low: "battery.25percent"
-        }
-    }
-
     private var tint: Color {
         switch event {
         case .pluggedIn: .green
@@ -40,31 +32,40 @@ final class BatteryActivity: IslandActivity {
         }
     }
 
-    var compactLeading: AnyView {
-        AnyView(Image(systemName: symbol).foregroundStyle(tint))
+    private func glyph(width: CGFloat) -> BatteryGlyph {
+        BatteryGlyph(percent: snapshot.percent, isCharging: event == .pluggedIn, tint: tint, width: width)
     }
+
+    var compactLeading: AnyView { AnyView(glyph(width: 24)) }
 
     var compactTrailing: AnyView {
-        AnyView(Text("\(snapshot.percent)%").monospacedDigit().foregroundStyle(tint))
+        AnyView(
+            Text("\(snapshot.percent)%")
+                .font(.system(size: 13, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(tint)
+        )
     }
 
-    var minimal: AnyView { compactLeading }
+    var minimal: AnyView { AnyView(glyph(width: 20)) }
+    var accent: Color? { tint }
 
     var expanded: AnyView {
         AnyView(
-            HStack(spacing: 14) {
-                Image(systemName: symbol)
-                    .font(.system(size: 36))
-                    .foregroundStyle(tint)
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 18) {
+                glyph(width: 72)
+                    .shadow(color: tint.opacity(0.5), radius: 10)
+                VStack(alignment: .leading, spacing: 0) {
                     Text(message)
-                        .font(.headline)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.7))
                     Text("\(snapshot.percent)%")
-                        .font(.title2.weight(.semibold))
+                        .font(.system(size: 34, weight: .bold))
                         .monospacedDigit()
+                        .foregroundStyle(tint)
                 }
             }
-            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         )
     }
 }

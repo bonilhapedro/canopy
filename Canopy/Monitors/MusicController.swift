@@ -1,6 +1,7 @@
 import AppKit
 import CanopyCore
 import Observation
+import SwiftUI
 
 /// Acompanha o Apple Music e o Spotify pelas notificações que eles mandam e os controla via AppleScript.
 @MainActor
@@ -8,6 +9,8 @@ import Observation
 final class MusicController {
     private(set) var nowPlaying: NowPlaying?
     private(set) var artwork: NSImage?
+    /// Cor tirada da capa, usada no brilho, no equalizador e na barra de progresso.
+    private(set) var accent: Color?
     private(set) var isShuffling = false
     /// Volume do próprio player, de 0 a 100, independente do volume do Mac.
     private(set) var playerVolume: Int?
@@ -83,7 +86,7 @@ final class MusicController {
         nowPlaying = track
         if track?.trackKey != artworkKey {
             artworkKey = track?.trackKey
-            artwork = nil
+            setArtwork(nil)
             if let track { loadArtwork(for: track) }
         }
         refreshPlayerSettings()
@@ -151,12 +154,17 @@ final class MusicController {
         playerVolume = result.atIndex(2).map { Int($0.int32Value) }
     }
 
+    private func setArtwork(_ image: NSImage?) {
+        artwork = image
+        accent = image.flatMap(ArtworkPalette.accent(of:)).map { Color(nsColor: $0) }
+    }
+
     private func loadArtwork(for track: NowPlaying) {
         guard isRunning(track.player) else { return }
         switch track.player {
         case .appleMusic:
             let data = AppleScriptRunner.run("tell application \"Music\" to get data of artwork 1 of current track")?.data
-            artwork = data.flatMap(NSImage.init(data:))
+            setArtwork(data.flatMap(NSImage.init(data:)))
         case .spotify:
             guard let address = AppleScriptRunner.run("tell application \"Spotify\" to get artwork url of current track")?.stringValue,
                   let url = URL(string: address)
@@ -166,7 +174,7 @@ final class MusicController {
                 guard let (data, _) = try? await URLSession.shared.data(from: url) else { return }
                 // A faixa pode ter mudado enquanto a capa baixava.
                 guard let self, self.artworkKey == key else { return }
-                self.artwork = NSImage(data: data)
+                self.setArtwork(NSImage(data: data))
             }
         }
     }

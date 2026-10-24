@@ -14,4 +14,14 @@ protocol IslandActivity: AnyObject {
     var minimal: AnyView { get }
     /// Conteúdo do painel aberto.
     var expanded: AnyView { get }
+    /// Cor que tinge o brilho em volta da ilha aberta.
+    var accent: Color? { get }
+    /// Fundo atrás do conteúdo da ilha aberta, como a capa da música desfocada.
+    var backdrop: AnyView? { get }
+}
+
+@MainActor
+extension IslandActivity {
+    var accent: Color? { nil }
+    var backdrop: AnyView? { nil }
 }
