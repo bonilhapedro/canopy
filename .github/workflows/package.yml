@@ -1,0 +1,40 @@
+name: Pacote
+
+# Gera o Canopy.dmg a cada push no main, em PRs que mexem no empacotamento e quando você pede em Actions › Pacote › Run workflow.
+# Numa tag v* (por exemplo v0.1.0), também cria uma Release no GitHub com o .dmg.
+# O CI não tem certificado, então o app sai com assinatura ad hoc (veja docs/INSTALAR.md).
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    paths:
+      - scripts/package.sh
+      - .github/workflows/package.yml
+      - Canopy.xcodeproj/**
+      - Canopy/Assets.xcassets/**
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build de Release e .dmg
+        run: scripts/package.sh
+
+      - name: Guardar o .dmg
+        uses: actions/upload-artifact@v4
+        with:
+          name: Canopy-dmg
+          path: build/package/Canopy-*.dmg
+
+      - name: Release da tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" build/package/Canopy-*.dmg --title "Canopy $GITHUB_REF_NAME" --generate-notes
