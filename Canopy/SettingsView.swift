@@ -153,6 +153,7 @@ private struct GeneralSettings: View {
 // MARK: - Aparência
 
 private struct AppearanceSettings: View {
+    @Environment(IslandCoordinator.self) private var coordinator
     @AppStorage(SettingsKey.glassIsland) private var glassIsland = true
     @AppStorage(SettingsKey.glassDarkness) private var glassDarkness = 0.25
     @AppStorage(SettingsKey.pillWidthAdjustment) private var pillWidth = 0.0
@@ -204,12 +205,19 @@ private struct AppearanceSettings: View {
                 }
                 .disabled(pillWidth == 0 && pillHeight == 0)
             } header: {
-                Text("Ilha fechada")
+                Text("Ilha em repouso")
             } footer: {
-                Text("Ajuste fino da pílula que fica sempre visível, em pontos: \(Int(pillWidth)) de largura, \(Int(pillHeight)) de altura.")
+                Text("Ajuste fino da pílula que fica sempre visível, sozinha ou com a música ao lado, em pontos: \(Int(pillWidth)) de largura, \(Int(pillHeight)) de altura.")
             }
         }
         .formStyle(.grouped)
+        // Aplica na hora, enquanto o controle é arrastado.
+        .onChange(of: pillWidth) { applyPill() }
+        .onChange(of: pillHeight) { applyPill() }
+    }
+
+    private func applyPill() {
+        coordinator.closedAdjustment = CGSize(width: pillWidth, height: pillHeight)
     }
 }
 

@@ -90,8 +90,9 @@ struct IslandView: View {
             }
         }
         .contentShape(shape)
-        .shadow(color: .black.opacity(phase == .expanded ? 0.35 : 0), radius: 18, y: 8)
-        .shadow(color: glow.opacity(phase == .expanded ? 0.22 : 0), radius: 24)
+        // Sombra curta, que cabe na margem da janela; maior que isso ela era cortada
+        // nas laterais e virava uma "aura" de borda reta.
+        .shadow(color: .black.opacity(phase == .expanded ? 0.3 : 0), radius: 12, y: 6)
         .onHover { coordinator.pointer(inside: $0) }
         .onContinuousHover { hover in
             switch hover {

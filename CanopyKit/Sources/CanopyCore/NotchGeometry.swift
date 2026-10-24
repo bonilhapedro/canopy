@@ -60,7 +60,8 @@ public struct IslandLayout: Sendable, Equatable {
     public var notch: CGSize
     /// Sem notch, a ilha fechada vira uma pílula menor que a área usada pelos outros estados.
     public var hasNotch: Bool
-    /// Ajuste fino da ilha fechada, feito pelo usuário nos Ajustes, em pontos.
+    /// Ajuste fino da ilha em repouso (fechada ou compacta), feito pelo usuário nos Ajustes, em pontos.
+    /// Com notch de verdade, a altura da compacta continua a do notch para emendar nele.
     public var closedAdjustment: CGSize
 
     /// Quanto a ilha compacta cresce para cada lado do notch.
@@ -68,7 +69,8 @@ public struct IslandLayout: Sendable, Equatable {
     public static let expandedMinWidth: CGFloat = 520
     public static let expandedContentHeight: CGFloat = 176
     /// Margem da janela em volta da ilha expandida, para a sombra não ser cortada.
-    public static let shadowPadding: CGFloat = 24
+    /// Precisa cobrir as orelhas da ilha aberta mais o raio da sombra.
+    public static let shadowPadding: CGFloat = 40
 
     /// Quanto a pílula fechada é menor, em largura e altura, em telas sem notch.
     public static let closedPillInset = CGSize(width: 56, height: 6)
@@ -96,7 +98,10 @@ public struct IslandLayout: Sendable, Equatable {
                 height: max(base.height + closedAdjustment.height, Self.closedMinimum.height)
             )
         case .compact:
-            return CGSize(width: notch.width + 2 * Self.compactWing, height: notch.height)
+            return CGSize(
+                width: notch.width + 2 * Self.compactWing + closedAdjustment.width,
+                height: hasNotch ? notch.height : max(notch.height + closedAdjustment.height, 16)
+            )
         case .expanded:
             return CGSize(
                 width: max(notch.width + 2 * Self.compactWing, Self.expandedMinWidth),
