@@ -47,4 +47,15 @@ struct IslandStateMachineTests {
         machine.handle(.activitiesChanged(hasActivity: false))
         #expect(machine.phase == .closed)
     }
+
+    @Test func remembersWhetherTheLastChangeGrewOrShrank() {
+        var machine = IslandStateMachine()
+        machine.handle(.pointerEntered)
+        #expect(machine.lastChangeGrew)
+        machine.handle(.pointerExited)
+        #expect(!machine.lastChangeGrew)
+        // Um evento que não muda o estado mantém a direção anterior.
+        machine.handle(.pointerExited)
+        #expect(!machine.lastChangeGrew)
+    }
 }

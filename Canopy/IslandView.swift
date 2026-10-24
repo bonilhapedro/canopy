@@ -4,8 +4,7 @@ import SwiftUI
 
 struct IslandView: View {
     @Environment(IslandCoordinator.self) private var coordinator
-
-    private static let morph = Animation.bouncy(duration: 0.45, extraBounce: 0.1)
+    @AppStorage(SettingsKey.glassIsland) private var glassIsland = true
 
     var body: some View {
         let phase = coordinator.phase
@@ -13,6 +12,11 @@ struct IslandView: View {
         let metrics = Metrics(phase: phase)
         let shape = NotchShape(earRadius: metrics.ear, bottomRadius: metrics.bottom)
         let glow = coordinator.primary?.accent ?? .white
+        let usesGlass = glassIsland && phase == .expanded
+        // Crescer quica; encolher não, senão o quique passa do tamanho final e a ilha some por um instante.
+        let morph: Animation = coordinator.lastChangeGrew
+            ? .bouncy(duration: 0.45, extraBounce: 0.1)
+            : .smooth(duration: 0.36)
 
         ZStack(alignment: .top) {
             content(for: phase)
@@ -22,10 +26,31 @@ struct IslandView: View {
         .frame(width: size.width, height: size.height)
         .padding(.horizontal, metrics.ear)
         .background {
-            ZStack {
+            ZStack(alignment: .top) {
+                // Liquid Glass só na ilha aberta: fechada e compacta, ela precisa ser preta
+                // para se confundir com o notch.
+                Color.clear
+                    .glassEffect(.regular.tint(Color.black.opacity(0.35)), in: shape)
+                    .opacity(usesGlass ? 1 : 0)
                 Color.black
+                    .opacity(usesGlass ? 0 : 1)
                 if phase == .expanded {
                     coordinator.primary?.backdrop
+                        .opacity(usesGlass ? 0.65 : 1)
+                }
+                if usesGlass {
+                    // Faixa preta no topo, para o notch de verdade continuar parecendo parte da ilha.
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black, location: 0),
+                            .init(color: .black, location: 0.55),
+                            .init(color: .black.opacity(0), location: 1),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: coordinator.layout.notch.height + 22)
+                    .transition(.opacity)
                 }
             }
         }
@@ -40,8 +65,8 @@ struct IslandView: View {
         .onHover { coordinator.pointer(inside: $0) }
         .onTapGesture { coordinator.click() }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(Self.morph, value: phase)
-        .animation(Self.morph, value: size)
+        .animation(morph, value: phase)
+        .animation(morph, value: size)
         .onChange(of: phase) { _, newPhase in
             // Um toque leve no trackpad quando a ilha abre.
             if newPhase == .expanded {
@@ -85,9 +110,9 @@ struct IslandView: View {
                 HStack(spacing: 8) {
                     ForEach(coordinator.secondary, id: \.id) { activity in
                         activity.minimal
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Capsule().fill(Color.white.opacity(0.1)))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .glassEffect(.regular, in: Capsule())
                     }
                 }
             }

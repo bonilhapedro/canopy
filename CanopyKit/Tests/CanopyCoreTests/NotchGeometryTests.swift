@@ -48,4 +48,12 @@ struct NotchGeometryTests {
         #expect(frame.midX == notch.midX)
         #expect(frame.maxY == notch.maxY)
     }
+
+    @Test func pillIsSmallerWhenClosedOnScreensWithoutNotch() {
+        let layout = IslandLayout(notch: CGSize(width: 180, height: 24), hasNotch: false)
+        let closed = layout.size(for: .closed)
+        #expect(closed.width < 180)
+        #expect(closed.height < 24)
+        #expect(layout.size(for: .compact).height == 24)
+    }
 }

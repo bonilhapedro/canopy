@@ -16,7 +16,8 @@ final class IslandCoordinator {
     var geometry = NotchGeometry(rect: CGRect(x: 0, y: 0, width: NotchGeometry.fallbackWidth, height: 24), hasNotch: false)
 
     var phase: IslandPhase { machine.phase }
-    var layout: IslandLayout { IslandLayout(notch: geometry.rect.size) }
+    var layout: IslandLayout { IslandLayout(notch: geometry.rect.size, hasNotch: geometry.hasNotch) }
+    var lastChangeGrew: Bool { machine.lastChangeGrew }
 
     var primary: (any IslandActivity)? {
         queue.primary.flatMap { activities[$0.id] }

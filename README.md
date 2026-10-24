@@ -19,6 +19,8 @@ Para testar o estado compacto, ligue **Atividade de teste** no menu da barra.
 - **Microfone e câmera**: enquanto algum app usa um deles.
 - **Volume**: um indicador rápido quando o volume muda.
 
+A ilha aberta usa Liquid Glass; dá para voltar ao fundo preto em **Ajustes**.
+
 ## Estrutura
 
 - `Canopy/`: o app (AppKit + SwiftUI): janela do notch, coordenador de atividades, interface e ajustes.

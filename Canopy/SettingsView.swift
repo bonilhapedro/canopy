@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(IslandCoordinator.self) private var coordinator
+    @AppStorage(SettingsKey.glassIsland) private var glassIsland = true
     @State private var launchesAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
 
@@ -15,6 +16,7 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             }
+            Toggle("Liquid Glass na ilha aberta", isOn: $glassIsland)
             Toggle("Mostrar atividade de teste", isOn: $coordinator.showsDemoActivity)
         }
         .formStyle(.grouped)
@@ -38,4 +40,8 @@ struct SettingsView: View {
             launchesAtLogin = SMAppService.mainApp.status == .enabled
         }
     }
+}
+
+enum SettingsKey {
+    static let glassIsland = "glassIsland"
 }

@@ -137,31 +137,33 @@ private struct MusicExpandedView: View {
 
                     SeekBar(music: music, track: track, tint: tint)
 
-                    HStack(spacing: 6) {
-                        Button(action: music.toggleShuffle) {
-                            Image(systemName: "shuffle")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(music.isShuffling ? tint : Color.white.opacity(0.55))
+                    GlassEffectContainer(spacing: 10) {
+                        HStack(spacing: 6) {
+                            Button(action: music.toggleShuffle) {
+                                Image(systemName: "shuffle")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(music.isShuffling ? tint : Color.white.opacity(0.55))
+                            }
+                            .buttonStyle(IslandButtonStyle(size: 30))
+                            Spacer(minLength: 0)
+                            Button(action: music.previousTrack) {
+                                Image(systemName: "backward.fill").font(.system(size: 17))
+                            }
+                            .buttonStyle(IslandButtonStyle(size: 34))
+                            Button(action: music.playPause) {
+                                Image(systemName: track.isPlaying ? "pause.fill" : "play.fill")
+                                    .font(.system(size: 24))
+                                    .contentTransition(.symbolEffect(.replace))
+                            }
+                            .buttonStyle(IslandButtonStyle(size: 42))
+                            Button(action: music.nextTrack) {
+                                Image(systemName: "forward.fill").font(.system(size: 17))
+                            }
+                            .buttonStyle(IslandButtonStyle(size: 34))
+                            Spacer(minLength: 0)
+                            // Mantém os três botões do meio centralizados.
+                            Color.clear.frame(width: 30, height: 1)
                         }
-                        .buttonStyle(IslandButtonStyle(size: 30))
-                        Spacer(minLength: 0)
-                        Button(action: music.previousTrack) {
-                            Image(systemName: "backward.fill").font(.system(size: 17))
-                        }
-                        .buttonStyle(IslandButtonStyle(size: 34))
-                        Button(action: music.playPause) {
-                            Image(systemName: track.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 24))
-                                .contentTransition(.symbolEffect(.replace))
-                        }
-                        .buttonStyle(IslandButtonStyle(size: 42))
-                        Button(action: music.nextTrack) {
-                            Image(systemName: "forward.fill").font(.system(size: 17))
-                        }
-                        .buttonStyle(IslandButtonStyle(size: 34))
-                        Spacer(minLength: 0)
-                        // Mantém os três botões do meio centralizados.
-                        Color.clear.frame(width: 30, height: 1)
                     }
 
                     PlayerVolumeRow(music: music, tint: tint)
