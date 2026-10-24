@@ -35,7 +35,10 @@ struct ShelfTests {
 
     @Test func oldestLeaveWhenFull() {
         var shelf = Shelf()
-        shelf.add((0..<Shelf.capacity).map { item("/\($0)") })
+        // Um de cada vez, para o /0 ser o mais antigo.
+        for index in 0..<Shelf.capacity {
+            shelf.add([item("/\(index)")])
+        }
         let discarded = shelf.add([item("/new")])
         #expect(shelf.items.count == Shelf.capacity)
         #expect(shelf.items.first?.path == "/new")
