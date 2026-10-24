@@ -12,6 +12,10 @@ O app não tem ícone no Dock. Ele aparece como uma cápsula na barra de menus e
 
 Para testar o estado compacto, ligue **Atividade de teste** no menu da barra.
 
+## Como instalar
+
+Para usar o Canopy como um app normal, em Aplicativos e sem o Xcode, rode `scripts/package.sh --install`. O passo a passo, com o certificado grátis que mantém as permissões e o .dmg, está em [docs/INSTALAR.md](docs/INSTALAR.md).
+
 ## O que a ilha mostra
 
 A ilha aberta tem páginas. As abas ficam no topo, divididas dos dois lados do notch. Para trocar, clique numa aba ou arraste dois dedos para os lados no trackpad.
@@ -52,7 +56,7 @@ Tudo isso liga e desliga em **Ajustes**, que também controla o Liquid Glass (cl
 
 O macOS pede cada uma na primeira vez que ela é usada: Automação (Apple Music e Spotify), Agenda (ao tocar em Conectar agenda), Localização (só com a localização precisa ligada) e Acessibilidade (para esconder o indicador de volume e brilho do macOS).
 
-Como o app é assinado localmente, o macOS pode esquecer as permissões depois de um build novo. Para Acessibilidade, tire o Canopy da lista com o botão − e adicione de novo. Para não ter que repetir isso, escolha o seu Apple ID em **Team**, na aba Signing & Capabilities do Xcode.
+Como o app é assinado localmente, o macOS pode esquecer as permissões depois de um build novo. Para Acessibilidade, tire o Canopy da lista com o botão − e adicione de novo. Para não ter que repetir isso, escolha o seu Apple ID em **Team**, na aba Signing & Capabilities do Xcode, ou instale com `scripts/package.sh --install` depois de criar o certificado (veja [docs/INSTALAR.md](docs/INSTALAR.md)).
 
 ## Desempenho
 
