@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// Onde o notch fica na tela, calculado a partir das medidas do NSScreen.
