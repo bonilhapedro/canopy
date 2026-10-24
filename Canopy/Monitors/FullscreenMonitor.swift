@@ -10,8 +10,22 @@ final class FullscreenMonitor {
     private var observers: [NSObjectProtocol] = []
     private var recheck: Task<Void, Never>?
 
-    func start() {
+    private var isEnabled: Bool { !observers.isEmpty }
+
+    /// Só escuta as trocas de app e de Space enquanto a opção de esconder em tela cheia está ligada.
+    func setEnabled(_ enabled: Bool) {
+        guard enabled != isEnabled else { return }
         let center = NSWorkspace.shared.notificationCenter
+        guard enabled else {
+            for observer in observers { center.removeObserver(observer) }
+            observers = []
+            recheck?.cancel()
+            if isFullscreen {
+                isFullscreen = false
+                onChange?(false)
+            }
+            return
+        }
         for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didActivateApplicationNotification] {
             observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.scheduleCheck() }
@@ -31,7 +45,7 @@ final class FullscreenMonitor {
         }
     }
 
-    func check() {
+    private func check() {
         let fullscreen = Self.frontmostCoversScreen(size: screenSize())
         guard fullscreen != isFullscreen else { return }
         isFullscreen = fullscreen

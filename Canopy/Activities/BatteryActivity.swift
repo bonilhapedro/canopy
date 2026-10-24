@@ -11,9 +11,13 @@ final class BatteryActivity: IslandActivity {
     private let event: BatteryEvent
     private let snapshot: BatterySnapshot
 
+    /// Lido uma vez: a ilha mostra o aviso por poucos segundos.
+    private let detail: String?
+
     init(event: BatteryEvent, snapshot: BatterySnapshot) {
         self.event = event
         self.snapshot = snapshot
+        detail = Self.detail(for: event, snapshot: snapshot)
     }
 
     private var tint: Color {
@@ -38,7 +42,7 @@ final class BatteryActivity: IslandActivity {
 
     var tabSymbol: String { event == .pluggedIn ? "bolt.fill" : "battery.50percent" }
 
-    private var detail: String? {
+    private static func detail(for event: BatteryEvent, snapshot: BatterySnapshot) -> String? {
         guard event == .pluggedIn else { return nil }
         guard let minutes = BatteryMonitor.minutesToFull() else { return snapshot.percent >= 100 ? "Carga completa" : nil }
         let hours = minutes / 60

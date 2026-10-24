@@ -13,6 +13,8 @@ final class VolumeMonitor {
 
     @ObservationIgnored var onChange: (() -> Void)?
     @ObservationIgnored private var device = AudioObjectID(kAudioObjectUnknown)
+    /// Saídas que já têm ouvinte. Voltar para uma delas não pode ligar um ouvinte repetido.
+    @ObservationIgnored private var listenedDevices: Set<AudioObjectID> = []
 
     func start() {
         // Fones conectados ou desconectados trocam a saída padrão.
@@ -30,11 +32,13 @@ final class VolumeMonitor {
     private func bindToDefaultDevice() {
         device = Self.defaultOutputDevice()
         read()
-        guard device != kAudioObjectUnknown else { return }
+        guard device != kAudioObjectUnknown, !listenedDevices.contains(device) else { return }
+        listenedDevices.insert(device)
+        let listened = device
         for selector in [kAudioHardwareServiceDeviceProperty_VirtualMainVolume, kAudioDevicePropertyMute] {
             var address = Self.outputAddress(selector)
-            AudioObjectAddPropertyListenerBlock(device, &address, .main) { [weak self] _, _ in
-                MainActor.assumeIsolated { self?.volumeDidChange() }
+            AudioObjectAddPropertyListenerBlock(listened, &address, .main) { [weak self] _, _ in
+                MainActor.assumeIsolated { self?.volumeDidChange(on: listened) }
             }
         }
     }
@@ -73,22 +77,29 @@ final class VolumeMonitor {
         read()
     }
 
-    private func volumeDidChange() {
-        read()
+    /// O aviso também chega para o que o próprio Canopy mudou, e aí o valor já está aqui:
+    /// só avisa a ilha quando algo mudou de fato, fora das teclas (Central de Controle, outro app).
+    private func volumeDidChange(on changed: AudioObjectID) {
+        // Os ouvintes de saídas antigas continuam ligados; só a saída atual conta.
+        guard changed == device, read() else { return }
         onChange?()
     }
 
-    private func read() {
+    /// Lê o volume e o mudo. Devolve se algum dos dois mudou.
+    @discardableResult
+    private func read() -> Bool {
         var level: Float32 = 0
         var size = UInt32(MemoryLayout<Float32>.size)
         var address = Self.outputAddress(kAudioHardwareServiceDeviceProperty_VirtualMainVolume)
-        if AudioObjectGetPropertyData(device, &address, 0, nil, &size, &level) == noErr {
-            volume = level
-        }
+        let newVolume = AudioObjectGetPropertyData(device, &address, 0, nil, &size, &level) == noErr ? level : volume
         var muted: UInt32 = 0
         size = UInt32(MemoryLayout<UInt32>.size)
         address = Self.outputAddress(kAudioDevicePropertyMute)
-        isMuted = AudioObjectGetPropertyData(device, &address, 0, nil, &size, &muted) == noErr && muted != 0
+        let newMuted = AudioObjectGetPropertyData(device, &address, 0, nil, &size, &muted) == noErr && muted != 0
+        guard newVolume != volume || newMuted != isMuted else { return false }
+        if newVolume != volume { volume = newVolume }
+        if newMuted != isMuted { isMuted = newMuted }
+        return true
     }
 
     private static func outputAddress(_ selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {

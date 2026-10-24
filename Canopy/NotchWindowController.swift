@@ -8,6 +8,7 @@ struct IslandServices {
     let calendar: CalendarMonitor
     let weather: WeatherService
     let timer: TimerController
+    let battery: BatteryMonitor
 }
 
 @MainActor
@@ -19,6 +20,7 @@ final class NotchWindowController {
         defer: false
     )
     private let coordinator: IslandCoordinator
+    private var isHidden = false
 
     init(coordinator: IslandCoordinator, services: IslandServices) {
         self.coordinator = coordinator
@@ -27,6 +29,7 @@ final class NotchWindowController {
             .environment(services.calendar)
             .environment(services.weather)
             .environment(services.timer)
+            .environment(services.battery)
         let host = FirstMouseHostingView(rootView: root)
         // A janela tem tamanho fixo; o SwiftUI não deve redimensioná-la.
         host.sizingOptions = []
@@ -38,6 +41,10 @@ final class NotchWindowController {
 
     /// A tela onde a ilha está.
     var screen: NSScreen? { panel.screen ?? NSScreen.withNotch ?? NSScreen.main }
+
+    #if BENCHMARK
+    var panelFrame: CGRect { panel.isVisible ? panel.frame : .zero }
+    #endif
 
     func show() {
         reposition()
@@ -54,17 +61,21 @@ final class NotchWindowController {
             safeAreaTop: screen.safeAreaInsets.top,
             menuBarHeight: NSStatusBar.system.thickness
         )
-        coordinator.geometry = geometry
-        panel.setFrame(coordinator.layout.panelFrame(notchRect: geometry.rect), display: true)
+        if coordinator.geometry != geometry { coordinator.geometry = geometry }
+        let frame = coordinator.layout.panelFrame(notchRect: geometry.rect)
+        if panel.frame != frame { panel.setFrame(frame, display: true) }
     }
 
     func applyPreferences() {
         // Fora de gravações e capturas de tela, como no Canopy original.
-        panel.sharingType = Preferences.hideFromCapture ? .none : .readOnly
+        let sharing: NSWindow.SharingType = Preferences.hideFromCapture ? .none : .readOnly
+        if panel.sharingType != sharing { panel.sharingType = sharing }
     }
 
     /// Some com a ilha, por exemplo com um app em tela cheia.
     func setHidden(_ hidden: Bool) {
+        guard hidden != isHidden else { return }
+        isHidden = hidden
         panel.ignoresMouseEvents = hidden
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.25

@@ -56,7 +56,7 @@ private struct MeetingExpandedView: View {
                 StartsIn(start: event.start, long: true)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(event.color)
-                MarqueeText(text: event.title, font: .system(size: 22, weight: .bold))
+                MarqueeText(text: event.title, size: 22, weight: .bold)
                 Text(event.start.formatted(date: .omitted, time: .shortened) + " – " + event.end.formatted(date: .omitted, time: .shortened)
                      + (event.location.map { " · " + $0 } ?? ""))
                     .font(.system(size: 13, weight: .medium))
@@ -86,7 +86,8 @@ struct StartsIn: View {
     var long = false
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 5)) { context in
+        // Os minutos viram junto com o início da reunião, então é só nesses instantes que o texto muda.
+        TimelineView(AlignedSchedule(anchor: start, interval: 60)) { context in
             Text(label(at: context.date))
                 .monospacedDigit()
                 .contentTransition(.numericText(countsDown: true))

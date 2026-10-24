@@ -364,10 +364,12 @@ private struct AudioSettings: View {
         }
         .formStyle(.grouped)
         .task {
-            // A permissão é dada nos Ajustes do Sistema; olha de novo a cada segundo enquanto esta tela está aberta.
-            while !Task.isCancelled {
-                isTrusted = MediaKeyInterceptor.isTrusted
+            // A permissão é dada nos Ajustes do Sistema; com esta tela aberta e ainda sem ela,
+            // olha de novo a cada segundo. Depois de dada, para de olhar.
+            isTrusted = MediaKeyInterceptor.isTrusted
+            while !isTrusted, !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
+                isTrusted = MediaKeyInterceptor.isTrusted
             }
         }
     }

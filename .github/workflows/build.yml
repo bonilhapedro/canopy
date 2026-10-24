@@ -25,3 +25,19 @@ jobs:
             -configuration Debug \
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO
+
+  perf:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Memória e CPU em cenários fixos
+        run: scripts/benchmark.sh
+
+      - name: Capturas da ilha em cada cenário
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas
+          path: build/benchmark/*.png
+          if-no-files-found: ignore

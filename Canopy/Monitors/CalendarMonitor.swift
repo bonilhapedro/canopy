@@ -32,9 +32,10 @@ final class CalendarMonitor {
     private(set) var upcoming: Event?
 
     @ObservationIgnored var onUpcomingChange: (() -> Void)?
-    @ObservationIgnored private let store = EKEventStore()
-    @ObservationIgnored private var observer: NSObjectProtocol?
-    @ObservationIgnored private var tickTask: Task<Void, Never>?
+    /// Aberto só quando a agenda é usada: o EventKit custa memória e uma conexão com o macOS.
+    @ObservationIgnored private var eventStore: EKEventStore?
+    @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    @ObservationIgnored private var wakeTask: Task<Void, Never>?
 
     /// Quanto antes do início a reunião aparece na ilha.
     static let warningLead: TimeInterval = 5 * 60
@@ -43,19 +44,35 @@ final class CalendarMonitor {
 
     func start() {
         updateAccess()
-        observer = NotificationCenter.default.addObserver(
+        // Relógio ou fuso trocados mudam o que é "hoje"; depois de dormir, o Mac pode ter pulado um aviso.
+        let center = NotificationCenter.default
+        for name in [Notification.Name.NSSystemClockDidChange, .NSSystemTimeZoneDidChange, .NSCalendarDayChanged] {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refresh() }
+            })
+        }
+        observers.append(NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refresh() }
+        })
+        refresh()
+    }
+
+    private var store: EKEventStore {
+        if let eventStore { return eventStore }
+        let store = EKEventStore()
+        eventStore = store
+        observers.append(NotificationCenter.default.addObserver(
             forName: .EKEventStoreChanged,
             object: store,
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
-        }
-        tickTask = Task { [weak self] in
-            while !Task.isCancelled {
-                self?.refresh()
-                try? await Task.sleep(for: .seconds(20))
-            }
-        }
+        })
+        return store
     }
 
     func requestAccess() {
@@ -75,14 +92,16 @@ final class CalendarMonitor {
     }
 
     private func updateAccess() {
-        switch EKEventStore.authorizationStatus(for: .event) {
-        case .fullAccess: access = .granted
-        case .notDetermined: access = .notDetermined
-        default: access = .denied
+        let status: Access = switch EKEventStore.authorizationStatus(for: .event) {
+        case .fullAccess: .granted
+        case .notDetermined: .notDetermined
+        default: .denied
         }
+        if access != status { access = status }
     }
 
     func refresh() {
+        wakeTask?.cancel()
         guard access == .granted, Preferences.calendarEnabled else {
             if !events.isEmpty { events = [] }
             setUpcoming(nil)
@@ -123,6 +142,29 @@ final class CalendarMonitor {
                 && now.timeIntervalSince(event.start) <= Self.warningTail
         }
         setUpcoming(Preferences.meetingAlerts ? soon : nil)
+        scheduleWake(after: now, events: fresh, endOfToday: calendar.date(byAdding: .day, value: 1, to: startOfToday))
+    }
+
+    /// Entre um evento e outro nada muda, então em vez de olhar a agenda de tempos em tempos
+    /// o Canopy dorme até o próximo instante em que algo muda: um aviso que começa ou sai,
+    /// um evento que termina, ou a virada do dia. Mudanças na agenda chegam por aviso do EventKit.
+    private func scheduleWake(after now: Date, events: [Event], endOfToday: Date?) {
+        var moments = [endOfToday].compactMap { $0 }
+        for event in events {
+            moments.append(event.end)
+            if !event.isAllDay {
+                moments.append(event.start.addingTimeInterval(-Self.warningLead))
+                moments.append(event.start.addingTimeInterval(Self.warningTail))
+            }
+        }
+        guard let next = moments.filter({ $0 > now }).min() else { return }
+        // Meio segundo de folga para acordar já do lado certo do instante.
+        let delay = next.timeIntervalSince(now) + 0.5
+        wakeTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            self?.refresh()
+        }
     }
 
     private func setUpcoming(_ event: Event?) {

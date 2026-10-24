@@ -42,6 +42,16 @@ O macOS pede cada uma na primeira vez que ela é usada: Automação (Apple Music
 
 Como o app é assinado localmente, o macOS pode esquecer as permissões depois de um build novo. Para Acessibilidade, tire o Canopy da lista com o botão − e adicione de novo. Para não ter que repetir isso, escolha o seu Apple ID em **Team**, na aba Signing & Capabilities do Xcode.
 
+## Desempenho
+
+A meta é ficar abaixo de 100 MB de memória e de 2% de CPU, sem nada atualizando à toa.
+
+- Os módulos esperam avisos do macOS (bateria, volume, brilho, câmera e microfone, agenda, tela cheia) em vez de conferir de tempos em tempos.
+- Animações contínuas (equalizador, texto que rola, bateria carregando) são do Core Animation: rodam fora do app, sem o SwiftUI redesenhar nada a cada quadro.
+- Relógios usam `AlignedSchedule`, que só atualiza a tela quando o número mostrado muda.
+
+Para medir, `scripts/benchmark.sh` faz o build de Release e mede cada cenário; o CI roda o mesmo script e guarda uma captura da ilha em cada um. No Xcode, o build de Debug com o depurador gasta bem mais do que o app de verdade: para conferir no Monitor de Atividade, mude para Release em Product › Scheme › Edit Scheme › Run › Build Configuration.
+
 ## Estrutura
 
 - `Canopy/`: o app (AppKit + SwiftUI): janela do notch, coordenador de atividades, interface e ajustes.

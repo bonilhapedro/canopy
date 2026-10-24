@@ -35,6 +35,8 @@ final class MediaKeyInterceptor {
             hasPrompted = true
             Self.requestTrust()
         }
+        // O macOS não avisa de forma confiável quando a permissão é dada, então confere a cada
+        // 2 segundos. Só enquanto ela falta: com o tap instalado, isto para.
         guard trustTask == nil else { return }
         trustTask = Task { [weak self] in
             while !Task.isCancelled {

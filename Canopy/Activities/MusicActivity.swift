@@ -14,7 +14,7 @@ final class MusicActivity: IslandActivity {
     }
 
     var compactLeading: AnyView { AnyView(ArtworkView(music: music, size: 26, cornerRadius: 7)) }
-    var compactTrailing: AnyView { AnyView(EqualizerBars(music: music)) }
+    var compactTrailing: AnyView { AnyView(MusicEqualizer(music: music)) }
     var minimal: AnyView { AnyView(ArtworkView(music: music, size: 20, cornerRadius: 5)) }
     var expanded: AnyView { AnyView(MusicExpandedView(music: music)) }
     var accent: Color? { music.accent }
@@ -90,37 +90,21 @@ private struct ArtworkBackdrop: View {
     }
 }
 
-/// Barrinhas na cor da capa que pulam enquanto a música toca.
-private struct EqualizerBars: View {
+/// O equalizador ligado à música: pula enquanto toca, na cor da capa.
+private struct MusicEqualizer: View {
     let music: MusicController
     var bars = 4
     var barWidth: CGFloat = 3
     var maxHeight: CGFloat = 16
 
     var body: some View {
-        let isPlaying = music.nowPlaying?.isPlaying ?? false
-        let tint = music.accent ?? .white
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: !isPlaying)) { context in
-            HStack(alignment: .center, spacing: barWidth * 0.8) {
-                ForEach(0..<bars, id: \.self) { index in
-                    Capsule()
-                        .fill(tint.gradient)
-                        .frame(width: barWidth, height: height(index: index, at: context.date, isPlaying: isPlaying))
-                }
-            }
-            .frame(height: maxHeight)
-            .shadow(color: tint.opacity(0.6), radius: 4)
-        }
-    }
-
-    private func height(index: Int, at date: Date, isPlaying: Bool) -> CGFloat {
-        let floor = barWidth
-        guard isPlaying else { return floor }
-        // Cada barra tem a sua velocidade, para a onda não parecer repetida.
-        let speed = 5 + Double((index * 37) % 40) / 10
-        let time = date.timeIntervalSinceReferenceDate
-        let wave = abs(sin(time * speed + Double(index))) * 0.65 + abs(sin(time * speed * 0.37)) * 0.35
-        return floor + (maxHeight - floor) * wave
+        EqualizerBars(
+            isPlaying: music.nowPlaying?.isPlaying ?? false,
+            tint: music.accent ?? .white,
+            bars: bars,
+            barWidth: barWidth,
+            maxHeight: maxHeight
+        )
     }
 }
 
@@ -154,14 +138,13 @@ private struct MusicExpandedView: View {
                     .help("Abrir o \(track.player == .appleMusic ? "Apple Music" : "Spotify")")
 
                     VStack(alignment: .leading, spacing: 2) {
-                        MarqueeText(text: track.title, font: .system(size: 15, weight: .bold))
-                        MarqueeText(text: track.artist, font: .system(size: 13, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.55))
+                        MarqueeText(text: track.title, size: 15, weight: .bold)
+                        MarqueeText(text: track.artist, size: 13, weight: .medium, color: .white.opacity(0.55))
                     }
                     .id(track.trackKey)
                     .transition(.blurReplace)
 
-                    EqualizerBars(music: music, bars: 6, barWidth: 3.5, maxHeight: 24)
+                    MusicEqualizer(music: music, bars: 6, barWidth: 3.5, maxHeight: 24)
                 }
                 .animation(.smooth(duration: 0.35), value: track.trackKey)
                 .entrance(0)
@@ -257,7 +240,10 @@ private struct SeekBar: View {
     @State private var isHovered = false
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { context in
+        // O tempo decorrido muda de segundo em segundo, contados do começo da faixa; só nesses instantes
+        // a barra é redesenhada. Pausada, ela fica parada.
+        let start = track.capturedAt.addingTimeInterval(-(track.position ?? 0))
+        TimelineView(AlignedSchedule(anchor: start, interval: 1, isPaused: !track.isPlaying)) { context in
             let duration = track.duration ?? 0
             let playing = track.position(at: context.date) ?? 0
             let fraction = dragFraction ?? (duration > 0 ? min(playing / duration, 1) : 0)

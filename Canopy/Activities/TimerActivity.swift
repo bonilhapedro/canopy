@@ -102,7 +102,7 @@ struct TimerPage: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.55))
                         .contentTransition(.opacity)
-                    TimerCountdown(timer: timer)
+                    TimerCountdown(timer: timer, rolls: true)
                         .font(.system(size: 44, weight: .bold))
                         .foregroundStyle(.white)
                 }
@@ -166,10 +166,12 @@ struct TimerRing: View {
     let timer: TimerController
     let size: CGFloat
     let lineWidth: CGFloat
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 20, paused: !timer.isRunning)) { context in
-            let remaining = 1 - (timer.timer?.progress(at: context.date) ?? 1)
+        let countdown = timer.timer
+        TimelineView(schedule(for: countdown)) { context in
+            let remaining = 1 - (countdown?.progress(at: context.date) ?? 1)
             ZStack {
                 Circle()
                     .stroke(Color.orange.opacity(0.22), lineWidth: lineWidth)
@@ -182,30 +184,58 @@ struct TimerRing: View {
         }
         .frame(width: size, height: size)
     }
+
+    /// O anel só muda na tela quando a ponta anda um pixel. Num timer de 25 minutos isso leva
+    /// segundos; redesenhar mais vezes que isso, até no máximo uma por segundo, não muda nada.
+    private func schedule(for countdown: CountdownTimer?) -> AlignedSchedule {
+        guard let countdown, let end = countdown.endDate else {
+            return AlignedSchedule(anchor: .now, interval: 1, isPaused: true)
+        }
+        let pixels = max(Double(size) * .pi * Double(displayScale), 1)
+        return AlignedSchedule(anchor: end, interval: min(max(countdown.duration / pixels, 1.0 / 15), 1))
+    }
 }
 
-/// A contagem em texto, atualizada a cada segundo.
+/// A contagem em texto, redesenhada só quando o segundo vira.
 struct TimerCountdown: View {
     let timer: TimerController
+    /// Na página do timer os números rolam; na ilha compacta, que fica na tela o tempo todo, só trocam.
+    var rolls = false
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 0.25)) { context in
-            Text(CountdownTimer.format(timer.timer?.remaining(at: context.date) ?? 0))
+        let countdown = timer.timer
+        let end = countdown?.endDate
+        TimelineView(AlignedSchedule(anchor: end ?? .now, interval: 1, isPaused: end == nil)) { context in
+            let remaining = countdown?.remaining(at: context.date) ?? 0
+            Text(CountdownTimer.format(remaining))
                 .monospacedDigit()
-                .contentTransition(.numericText(countsDown: true))
-                .animation(.snappy, value: Int(timer.timer?.remaining(at: context.date) ?? 0))
+                .contentTransition(rolls ? .numericText(countsDown: true) : .identity)
+                .animation(rolls ? .snappy : nil, value: Int(remaining.rounded(.up)))
         }
     }
 }
 
 struct RingingBell: View {
     let size: CGFloat
+    @State private var rings = 0
 
     var body: some View {
         Image(systemName: "bell.fill")
             .font(.system(size: size, weight: .semibold))
             .foregroundStyle(.orange)
             .shadow(color: .orange.opacity(0.6), radius: size * 0.3)
-            .symbolEffect(.wiggle, options: .repeating)
+            .symbolEffect(.wiggle, value: rings)
+            // Balança junto com o som do alarme e depois sossega: um sino balançando
+            // sem parar, com ninguém olhando, gastaria CPU à toa.
+            .task {
+                for _ in 0..<6 {
+                    rings += 1
+                    do {
+                        try await Task.sleep(for: .seconds(1.4))
+                    } catch {
+                        return
+                    }
+                }
+            }
     }
 }
