@@ -46,7 +46,11 @@ final class AirPodsMonitor {
         guard notification == nil else { return }
         let devices = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] ?? []
         alreadyConnected = Set(devices.filter { $0.isConnected() }.compactMap(\.addressString))
-        let receiver = ConnectReceiver { [weak self] device in self?.deviceConnected(device) }
+        // O aviso pode chegar numa fila do próprio Bluetooth, fora da thread principal.
+        // Só o endereço atravessa; o aparelho é buscado de novo do lado de cá.
+        let receiver = ConnectReceiver { [weak self] address in
+            Task { @MainActor in self?.deviceConnected(address: address) }
+        }
         self.receiver = receiver
         notification = IOBluetoothDevice.register(forConnectNotifications: receiver, selector: #selector(ConnectReceiver.connected(_:device:)))
         // Os avisos repetidos chegam logo; depois disso, uma conexão é sempre nova.
@@ -65,10 +69,10 @@ final class AirPodsMonitor {
         device = nil
     }
 
-    private func deviceConnected(_ device: IOBluetoothDevice) {
-        let address = device.addressString ?? ""
+    private func deviceConnected(address: String) {
         if alreadyConnected.remove(address) != nil { return }
-        guard let model = Self.model(of: device) else { return }
+        let found: IOBluetoothDevice? = IOBluetoothDevice(addressString: address)
+        guard let device = found, let model = Self.model(of: device) else { return }
         // Os AirPods às vezes conectam duas vezes seguidas, um perfil de cada vez.
         if let lastConnection, lastConnection.address == address, Date.now.timeIntervalSince(lastConnection.date) < 10 { return }
         lastConnection = (address, .now)
@@ -129,18 +133,18 @@ final class AirPodsMonitor {
     }
 }
 
-/// Recebe o aviso do IOBluetooth, que chama um seletor do Objective-C, e passa adiante.
-/// O aviso chega no run loop de quem registrou, a thread principal.
-@MainActor
+/// Recebe o aviso do IOBluetooth, que chama um seletor do Objective-C, e passa adiante
+/// só o endereço do aparelho. Não pertence à thread principal: o Bluetooth chama de onde quiser.
 private final class ConnectReceiver: NSObject {
-    private let handler: (IOBluetoothDevice) -> Void
+    private let handler: @Sendable (String) -> Void
 
-    init(handler: @escaping (IOBluetoothDevice) -> Void) {
+    init(handler: @escaping @Sendable (String) -> Void) {
         self.handler = handler
     }
 
     @objc func connected(_ notification: IOBluetoothUserNotification, device: IOBluetoothDevice) {
-        handler(device)
+        guard let address = device.addressString else { return }
+        handler(address)
     }
 }
 
