@@ -499,6 +499,7 @@ private struct TraySettings: View {
     @AppStorage(SettingsKey.trayEnabled) private var enabled = true
     @AppStorage(SettingsKey.trayCopiesFiles) private var copiesFiles = false
     @AppStorage(SettingsKey.trayRemovesAfterDrag) private var removesAfterDrag = true
+    @AppStorage(SettingsKey.trayScreenshots) private var screenshots = true
 
     var body: some View {
         Form {
@@ -507,6 +508,12 @@ private struct TraySettings: View {
             } footer: {
                 Text("Arraste arquivos até o notch e a ilha abre na bandeja. Solte à esquerda para guardar, ou à direita para mandar direto por AirDrop. Para tirar da bandeja, arraste o arquivo para outro app; clique duas vezes para abrir, ou use o botão direito.")
             }
+            Section {
+                Toggle("Mandar capturas de tela para a bandeja", isOn: $screenshots)
+            } footer: {
+                Text("Cada captura feita com ⇧⌘3, ⇧⌘4 ou ⇧⌘5 entra na bandeja assim que o macOS a grava, e a ilha avisa. Com a miniatura flutuante do macOS ligada, isso leva alguns segundos.")
+            }
+            .disabled(!enabled)
             Section {
                 Toggle("Guardar uma cópia dos arquivos", isOn: $copiesFiles)
                 Toggle("Tirar da bandeja depois de arrastar para fora", isOn: $removesAfterDrag)

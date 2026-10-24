@@ -28,6 +28,7 @@ enum SettingsKey {
     static let trayEnabled = "trayEnabled"
     static let trayCopiesFiles = "trayCopiesFiles"
     static let trayRemovesAfterDrag = "trayRemovesAfterDrag"
+    static let trayScreenshots = "trayScreenshots"
 }
 
 /// Valores padrão dos Ajustes e atalhos para ler cada um fora das views.
@@ -59,6 +60,7 @@ enum Preferences {
         SettingsKey.trayEnabled: true,
         SettingsKey.trayCopiesFiles: false,
         SettingsKey.trayRemovesAfterDrag: true,
+        SettingsKey.trayScreenshots: true,
     ]
 
     /// Precisa rodar antes de qualquer leitura, para os padrões valerem também no @AppStorage.
@@ -100,4 +102,5 @@ enum Preferences {
     static var trayEnabled: Bool { bool(SettingsKey.trayEnabled) }
     static var trayCopiesFiles: Bool { bool(SettingsKey.trayCopiesFiles) }
     static var trayRemovesAfterDrag: Bool { bool(SettingsKey.trayRemovesAfterDrag) }
+    static var trayScreenshots: Bool { bool(SettingsKey.trayScreenshots) }
 }

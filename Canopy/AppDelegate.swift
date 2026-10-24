@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let lock = LockMonitor()
     private let output = AudioOutputMonitor()
     private let fullscreen = FullscreenMonitor()
+    private let screenshots = ScreenshotWatcher()
 
     private var windowController: NotchWindowController?
     private var screenObserver: NSObjectProtocol?
@@ -79,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mediaKeys.setEnabled(Preferences.replaceSystemHUD && (Preferences.volumeHUD || Preferences.brightnessHUD))
         // Sem esconder em tela cheia, ninguém precisa saber quando um app entra em tela cheia.
         fullscreen.setEnabled(Preferences.hideInFullscreen)
+        screenshots.setEnabled(Preferences.trayEnabled && Preferences.trayScreenshots)
     }
 
     /// O que só precisa existir com a ilha aberta.
@@ -145,6 +147,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         calendar.start()
 
         tray.start()
+        screenshots.onCapture = { [weak self] urls in
+            self?.tray.add(urls)
+            self?.coordinator.flash(ScreenshotActivity(count: urls.count), for: .seconds(2))
+        }
 
         fullscreen.screenSize = { [weak self] in self?.windowController?.screen?.frame.size }
         fullscreen.onChange = { [weak self] isFullscreen in

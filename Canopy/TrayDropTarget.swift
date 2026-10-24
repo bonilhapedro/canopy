@@ -63,7 +63,13 @@ final class TrayDropTarget {
             if urls.isEmpty {
                 tray.receive(promises, thenAirDrop: true)
             } else {
-                tray.airDrop(urls)
+                // Abrir o AirDrop no meio da soltura não funciona: o arraste ainda não terminou
+                // e a janela dele não aparece. Espera o AppKit fechar a soltura primeiro.
+                let tray = tray
+                Task {
+                    try? await Task.sleep(for: .milliseconds(150))
+                    tray.airDrop(urls)
+                }
             }
         }
         coordinator.dropExited(dropped: true)

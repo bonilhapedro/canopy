@@ -27,6 +27,8 @@ Arraste um arquivo (ou vários) até o notch: a ilha abre na bandeja com duas á
 
 Na bandeja, arraste um arquivo para fora para soltá-lo em outro app (ele sai como cópia; o original não muda de lugar), ou use a pilha ao lado para levar todos de uma vez. Clique duas vezes para abrir; com o botão direito há Mostrar no Finder, AirDrop e Tirar da bandeja.
 
+Capturas de tela (⇧⌘3, ⇧⌘4, ⇧⌘5) entram sozinhas na bandeja, e a ilha avisa. Dá para desligar nos Ajustes.
+
 Por padrão a bandeja guarda só onde o arquivo está. Com **Guardar uma cópia** (em Ajustes › Bandeja de arquivos), ela copia para `~/Library/Application Support/Canopy/Tray`, e a cópia é apagada quando sai da bandeja.
 
 Atividades que aparecem ao lado do notch:
