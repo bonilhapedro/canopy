@@ -12,6 +12,13 @@ O app não tem ícone no Dock. Ele aparece como uma cápsula na barra de menus e
 
 Para testar o estado compacto, ligue **Atividade de teste** no menu da barra.
 
+## O que a ilha mostra
+
+- **Música** do Apple Music e do Spotify: capa, faixa, progresso e controles. Na primeira vez, o macOS pede permissão de Automação para cada player; sem ela, a ilha mostra a faixa mas sem capa e sem controles.
+- **Bateria**: aviso rápido ao ligar ou desligar o carregador e quando a bateria chega a 10%.
+- **Microfone e câmera**: enquanto algum app usa um deles.
+- **Volume**: um indicador rápido quando o volume muda.
+
 ## Estrutura
 
 - `Canopy/`: o app (AppKit + SwiftUI): janela do notch, coordenador de atividades, interface e ajustes.

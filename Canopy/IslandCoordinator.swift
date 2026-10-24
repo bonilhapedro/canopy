@@ -11,6 +11,7 @@ final class IslandCoordinator {
     private(set) var queue = ActivityQueue()
     private var activities: [String: any IslandActivity] = [:]
     @ObservationIgnored private var collapseTask: Task<Void, Never>?
+    @ObservationIgnored private var flashTasks: [String: Task<Void, Never>] = [:]
 
     var geometry = NotchGeometry(rect: CGRect(x: 0, y: 0, width: NotchGeometry.fallbackWidth, height: 24), hasNotch: false)
 
@@ -36,6 +37,28 @@ final class IslandCoordinator {
         activities[id] = nil
         queue.remove(id: id)
         machine.handle(.activitiesChanged(hasActivity: !queue.isEmpty))
+    }
+
+    func isActive(id: String) -> Bool {
+        queue.contains(id: id)
+    }
+
+    /// Mostra uma atividade por um tempo curto, como o HUD de volume.
+    /// Repetir antes do fim troca o conteúdo e reinicia o prazo, sem reordenar a fila.
+    func flash(_ activity: any IslandActivity, for duration: Duration) {
+        let id = activity.id
+        flashTasks[id]?.cancel()
+        if queue.contains(id: id) {
+            activities[id] = activity
+        } else {
+            start(activity)
+        }
+        flashTasks[id] = Task { [weak self] in
+            try? await Task.sleep(for: duration)
+            guard !Task.isCancelled else { return }
+            self?.flashTasks[id] = nil
+            self?.end(id: id)
+        }
     }
 
     func pointer(inside: Bool) {
