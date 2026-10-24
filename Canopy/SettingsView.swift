@@ -29,6 +29,7 @@ struct SettingsView: View {
                 case .fileTray: TraySettings()
                 case .battery: BatterySettings()
                 case .audio: AudioSettings()
+                case .accessories: AccessorySettings()
                 case .calendar: CalendarSettings()
                 case .weather: WeatherSettings()
                 case .timer: TimerSettings()
@@ -43,10 +44,10 @@ struct SettingsView: View {
 
 enum SettingsSection: String, Identifiable, Hashable {
     case general, appearance, media, fileTray
-    case battery, audio, calendar, weather, timer, touchID
+    case battery, audio, accessories, calendar, weather, timer, touchID
 
     static let main: [SettingsSection] = [.general, .appearance, .media, .fileTray]
-    static let overlays: [SettingsSection] = [.battery, .audio, .calendar, .weather, .timer, .touchID]
+    static let overlays: [SettingsSection] = [.battery, .audio, .accessories, .calendar, .weather, .timer, .touchID]
 
     var id: String { rawValue }
 
@@ -58,6 +59,7 @@ enum SettingsSection: String, Identifiable, Hashable {
         case .fileTray: "Bandeja de arquivos"
         case .battery: "Bateria"
         case .audio: "Volume e brilho"
+        case .accessories: "Acessórios"
         case .calendar: "Agenda"
         case .weather: "Clima"
         case .timer: "Timer"
@@ -73,6 +75,7 @@ enum SettingsSection: String, Identifiable, Hashable {
         case .fileTray: "tray.full"
         case .battery: "battery.75percent"
         case .audio: "sun.max"
+        case .accessories: "airpods"
         case .calendar: "calendar"
         case .weather: "cloud.sun"
         case .timer: "timer"
@@ -310,6 +313,26 @@ private struct BatterySettings: View {
                 Toggle("Avisar ao ligar e desligar o carregador", isOn: $batteryAlerts)
             } footer: {
                 Text("Mostra também quando a bateria chega a 10%.")
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+private struct AccessorySettings: View {
+    @AppStorage(SettingsKey.airPodsAlerts) private var airPodsAlerts = true
+    @AppStorage(SettingsKey.airPodsExpand) private var airPodsExpand = true
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Mostrar os AirPods ao conectar", isOn: $airPodsAlerts)
+                Toggle("Abrir a ilha com a bateria", isOn: $airPodsExpand)
+                    .disabled(!airPodsAlerts)
+            } header: {
+                Text("AirPods e Beats")
+            } footer: {
+                Text("Como no iPhone: o fone aparece girando e os anéis mostram a bateria dos fones e do estojo. Fechada, a ilha mostra só o fone e a carga. Na primeira vez, o macOS pede acesso ao Bluetooth.")
             }
         }
         .formStyle(.grouped)

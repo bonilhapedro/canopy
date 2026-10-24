@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let mediaKeys = MediaKeyInterceptor()
     private let lock = LockMonitor()
     private let output = AudioOutputMonitor()
+    private let airPods = AirPodsMonitor()
     private let fullscreen = FullscreenMonitor()
     private let screenshots = ScreenshotWatcher()
 
@@ -81,6 +82,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Sem esconder em tela cheia, ninguém precisa saber quando um app entra em tela cheia.
         fullscreen.setEnabled(Preferences.hideInFullscreen)
         screenshots.setEnabled(Preferences.trayEnabled && Preferences.trayScreenshots)
+        // Desligado, o Canopy nem pede o Bluetooth.
+        airPods.setEnabled(Preferences.airPodsAlerts)
     }
 
     /// O que só precisa existir com a ilha aberta.
@@ -125,10 +128,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         output.onChange = { [weak self] kind, name in
-            guard Preferences.outputAlerts else { return }
-            self?.coordinator.flash(OutputActivity(kind: kind, name: name), for: .seconds(3))
+            guard let self, Preferences.outputAlerts else { return }
+            // Os AirPods que acabaram de conectar já apareceram com a bateria; a saída de áudio
+            // mudando para eles logo depois não precisa de outro aviso.
+            if Preferences.airPodsAlerts, kind.isAppleHeadphones, let connectedAt = airPods.connectedAt,
+               Date.now.timeIntervalSince(connectedAt) < 15 { return }
+            coordinator.flash(OutputActivity(kind: kind, name: name), for: .seconds(3))
         }
         output.start()
+
+        airPods.onConnect = { [weak self] status in
+            guard let self else { return }
+            coordinator.end(id: OutputActivity.activityID)
+            coordinator.flash(
+                AirPodsActivity(monitor: airPods, status: status),
+                for: .seconds(5),
+                expands: Preferences.airPodsExpand
+            )
+        }
 
         lock.onUnlock = { [weak self] in
             guard Preferences.unlockAnimation else { return }
@@ -280,6 +297,9 @@ extension AppDelegate {
             coordinator.start(BatteryActivity(event: .pluggedIn, snapshot: snapshot))
             coordinator.click()
         case "home":
+            coordinator.click()
+        case "airpods":
+            coordinator.start(AirPodsActivity(monitor: airPods, status: airPods.simulateConnection()))
             coordinator.click()
         case "tray":
             tray.simulateItems()

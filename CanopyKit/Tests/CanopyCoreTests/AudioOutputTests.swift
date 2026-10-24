@@ -7,6 +7,8 @@ struct AudioOutputTests {
         #expect(AudioOutputKind(name: "AirPods Max", transport: .bluetooth) == .airPodsMax)
         #expect(AudioOutputKind(name: "AirPods de Pedro", transport: .bluetooth) == .airPods)
         #expect(AudioOutputKind(name: "Beats Studio Buds", transport: .bluetooth) == .beats)
+        #expect(AudioOutputKind(name: "AirPods de Pedro", transport: .bluetooth).isAppleHeadphones)
+        #expect(!AudioOutputKind(name: "WH-1000XM5", transport: .bluetooth).isAppleHeadphones)
     }
 
     @Test func fallsBackToTheTransport() {

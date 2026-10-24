@@ -58,4 +58,43 @@ struct IslandStateMachineTests {
         machine.handle(.pointerExited)
         #expect(!machine.lastChangeGrew)
     }
+
+    @Test func presentationOpensAndClosesByItself() {
+        var machine = IslandStateMachine()
+        machine.handle(.activitiesChanged(hasActivity: true))
+        machine.handle(.presentationStarted)
+        #expect(machine.phase == .expanded)
+        machine.handle(.presentationEnded)
+        #expect(machine.phase == .compact)
+    }
+
+    @Test func presentationStaysOpenWhileThePointerIsInside() {
+        var machine = IslandStateMachine()
+        machine.handle(.activitiesChanged(hasActivity: true))
+        machine.handle(.presentationStarted)
+        machine.handle(.pointerEntered)
+        machine.handle(.presentationEnded)
+        #expect(machine.phase == .expanded)
+        machine.handle(.pointerExited)
+        #expect(machine.phase == .compact)
+    }
+
+    @Test func leavingDuringAPresentationKeepsItOpen() {
+        var machine = IslandStateMachine()
+        machine.handle(.activitiesChanged(hasActivity: true))
+        machine.handle(.presentationStarted)
+        machine.handle(.pointerEntered)
+        machine.handle(.pointerExited)
+        #expect(machine.phase == .expanded)
+        machine.handle(.presentationEnded)
+        #expect(machine.phase == .compact)
+    }
+
+    @Test func presentationEndingDoesNotCloseAnIslandOpenedByClick() {
+        var machine = IslandStateMachine()
+        machine.handle(.clicked)
+        machine.handle(.presentationStarted)
+        machine.handle(.presentationEnded)
+        #expect(machine.phase == .expanded)
+    }
 }

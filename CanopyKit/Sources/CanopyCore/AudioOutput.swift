@@ -34,6 +34,14 @@ public enum AudioOutputKind: Sendable, Equatable {
         }
     }
 
+    /// AirPods ou Beats, que o aviso de AirPods já mostra ao conectar.
+    public var isAppleHeadphones: Bool {
+        switch self {
+        case .airPodsMax, .airPodsPro, .airPods, .beats: true
+        default: false
+        }
+    }
+
     public var symbol: String {
         switch self {
         case .airPodsMax: "airpodsmax"
