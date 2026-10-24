@@ -264,15 +264,21 @@ extension AppDelegate {
             timer.start(minutes: 25)
         case "privacy":
             privacy.simulateMicrophone()
+        case "charging-expanded":
+            let snapshot = BatterySnapshot(percent: 64, isCharging: true, isPluggedIn: true)
+            coordinator.start(BatteryActivity(event: .pluggedIn, snapshot: snapshot))
+            coordinator.click()
         case "home":
             coordinator.click()
         default:
             break
         }
-        // Prova no log que a ilha está mesmo na tela.
+        // Prova no log que a ilha está mesmo na tela, e onde capturá-la: o screencapture conta de cima.
         let screens = NSScreen.screens.map { "\($0.frame)" }.joined(separator: ", ")
         let panel = windowController?.panelFrame ?? .zero
-        FileHandle.standardError.write(Data("benchmark: scenario=\(scenario) phase=\(coordinator.phase) screens=[\(screens)] panel=\(panel)\n".utf8))
+        let top = NSScreen.screens.first?.frame.maxY ?? 0
+        let capture = [panel.minX, top - panel.maxY, panel.width, panel.height].map { "\(Int($0))" }.joined(separator: ",")
+        FileHandle.standardError.write(Data("benchmark: scenario=\(scenario) phase=\(coordinator.phase) screens=[\(screens)] panel=\(panel) capture=\(capture)\n".utf8))
     }
 }
 #endif

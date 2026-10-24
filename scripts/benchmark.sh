@@ -12,12 +12,12 @@ cd "$(dirname "$0")/.."
 
 SCENARIOS=("$@")
 if [ ${#SCENARIOS[@]} -eq 0 ]; then
-  SCENARIOS=(idle music music-expanded timer privacy home)
+  SCENARIOS=(idle music music-expanded timer privacy charging-expanded home)
 fi
 WARMUP=${WARMUP:-10}
 WINDOW=${WINDOW:-30}
 BUILD=${BUILD_DIR:-build/benchmark}
-SAMPLE=${SAMPLE:-music music-expanded timer privacy}
+SAMPLE=${SAMPLE:-music music-expanded timer privacy charging-expanded}
 
 xcodebuild build \
   -project Canopy.xcodeproj \
@@ -50,6 +50,12 @@ for scenario in "${SCENARIOS[@]}"; do
   sleep "$WINDOW"
   end=$(seconds "$(ps -o time= -p "$pid" | tr -d ' ')")
   cpu=$(awk -v a="$start" -v b="$end" -v w="$WINDOW" 'BEGIN { printf "%.2f", (b - a) * 100 / w }')
+
+  # Como a ilha ficou, para conferir o visual sem um Mac na mão. O CI guarda as capturas.
+  rect=$(sed -n 's/^benchmark:.* capture=\([0-9,-]*\).*$/\1/p' "$log" | head -1)
+  if [ -n "$rect" ]; then
+    screencapture -x -R"$rect" "$BUILD/$scenario.png" 2>/dev/null || true
+  fi
 
   summary=$(vmmap --summary "$pid" 2>/dev/null || true)
   footprint=$(echo "$summary" | awk -F: '/^Physical footprint:/ { gsub(/ /, "", $2); print $2 }')

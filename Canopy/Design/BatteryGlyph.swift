@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Bateria desenhada à mão, com o nível preenchido e um raio quando está carregando.
@@ -17,9 +18,8 @@ struct BatteryGlyph: View {
                 RoundedRectangle(cornerRadius: height * 0.3, style: .continuous)
                     .stroke(Color.white.opacity(0.45), lineWidth: max(1, width * 0.045))
                 if isLive && isCharging {
-                    LiquidLevel(level: level, tint: tint)
+                    LiquidLevel(level: level, tint: tint, cornerRadius: height * 0.18)
                         .frame(width: width - 4, height: height - 4)
-                        .clipShape(RoundedRectangle(cornerRadius: height * 0.18, style: .continuous))
                         .padding(.leading, 2)
                 } else {
                     RoundedRectangle(cornerRadius: height * 0.18, style: .continuous)
@@ -77,52 +77,145 @@ struct BatteryRing: View {
 }
 
 /// O nível da bateria como líquido: a borda da direita ondula e um brilho atravessa.
-private struct LiquidLevel: View {
+/// Como no equalizador, quem anima é o Core Animation; o SwiftUI desenha uma vez só.
+private struct LiquidLevel: NSViewRepresentable {
     let level: CGFloat
     let tint: Color
+    let cornerRadius: CGFloat
 
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { context in
-            let time = context.date.timeIntervalSinceReferenceDate
-            GeometryReader { geometry in
-                let size = geometry.size
-                ZStack(alignment: .leading) {
-                    LiquidEdge(level: level, phase: time * 3.2, amplitude: max(1, size.height * 0.08))
-                        .fill(LinearGradient(colors: [tint.opacity(0.75), tint], startPoint: .leading, endPoint: .trailing))
-                    // O brilho que corre da esquerda para a direita, como no iPhone carregando.
-                    let sweep = CGFloat((time * 0.6).truncatingRemainder(dividingBy: 1))
-                    LinearGradient(
-                        colors: [.white.opacity(0), .white.opacity(0.55), .white.opacity(0)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .frame(width: size.width * 0.35)
-                    .offset(x: size.width * (sweep * 1.4 - 0.35))
-                    .mask(LiquidEdge(level: level, phase: time * 3.2, amplitude: max(1, size.height * 0.08)))
-                    .blendMode(.plusLighter)
-                }
-            }
-        }
+    func makeNSView(context: Context) -> LiquidLevelView {
+        LiquidLevelView()
+    }
+
+    func updateNSView(_ view: LiquidLevelView, context: Context) {
+        view.update(level: level, tint: NSColor(tint), cornerRadius: cornerRadius)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: LiquidLevelView, context: Context) -> CGSize? {
+        proposal.replacingUnspecifiedDimensions()
     }
 }
 
-private struct LiquidEdge: Shape {
-    var level: CGFloat
-    var phase: Double
-    var amplitude: CGFloat
+private final class LiquidLevelView: NSView {
+    private var level: CGFloat?
+    private var tint = NSColor.clear
+    /// Os cantos arredondados de dentro da bateria.
+    private let clip = CALayer()
+    /// O líquido: o degradê e o brilho, recortados pela borda ondulada.
+    private let liquid = CALayer()
+    private let fill = CAGradientLayer()
+    private let sweep = CAGradientLayer()
+    private let edge = CAShapeLayer()
 
-    func path(in rect: CGRect) -> Path {
-        let edge = max(rect.width * level, 2)
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: edge, y: rect.minY))
+    private static let waveKey = "wave"
+    private static let sweepKey = "sweep"
+    /// Uma volta da onda, em segundos.
+    private static let wavePeriod = 2 * Double.pi / 3.2
+    /// O tempo do brilho para atravessar a bateria.
+    private static let sweepPeriod = 1 / 0.6
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        clip.masksToBounds = true
+        clip.cornerCurve = .continuous
+        for gradient in [fill, sweep] {
+            gradient.startPoint = CGPoint(x: 0, y: 0.5)
+            gradient.endPoint = CGPoint(x: 1, y: 0.5)
+            liquid.addSublayer(gradient)
+        }
+        sweep.colors = [CGFloat(0), 0.55, 0].map { NSColor.white.withAlphaComponent($0).cgColor }
+        liquid.mask = edge
+        clip.addSublayer(liquid)
+        layer?.addSublayer(clip)
+        setAccessibilityElement(false)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func update(level: CGFloat, tint: NSColor, cornerRadius: CGFloat) {
+        if !tint.matches(self.tint) {
+            self.tint = tint
+            fill.colors = [tint.withAlphaComponent(0.75).cgColor, tint.cgColor]
+        }
+        if clip.cornerRadius != cornerRadius { clip.cornerRadius = cornerRadius }
+        guard level != self.level else { return }
+        self.level = level
+        arrange()
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        let resized = newSize != frame.size
+        super.setFrameSize(newSize)
+        // Refazer as animações reinicia a onda; mudar só de lugar não precisa disso.
+        if resized { arrange() }
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        // Fora da janela o Core Animation pode largar as animações; ao voltar, começam de novo.
+        if window != nil { arrange() }
+    }
+
+    private func arrange() {
+        let size = bounds.size
+        guard let level, size.width > 0, size.height > 0 else { return }
+        let rect = CGRect(origin: .zero, size: size)
+        let amplitude = max(1, size.height * 0.08)
+        let sweepWidth = size.width * 0.35
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for sublayer in [clip, liquid, fill, edge] { sublayer.frame = rect }
+        edge.path = Self.edgePath(level: level, phase: 0, amplitude: amplitude, in: rect)
+        sweep.bounds = CGRect(x: 0, y: 0, width: sweepWidth, height: size.height)
+        // Parado, o brilho fica fora da bateria, à esquerda.
+        sweep.position = CGPoint(x: -sweepWidth / 2, y: size.height / 2)
+        CATransaction.commit()
+
+        edge.removeAnimation(forKey: Self.waveKey)
+        sweep.removeAnimation(forKey: Self.sweepKey)
+        guard window != nil, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return }
+
+        // Uma volta da onda em 24 quadros; o Core Animation preenche o meio.
+        let frames = 24
+        let wave = CAKeyframeAnimation(keyPath: "path")
+        wave.values = (0...frames).map { index in
+            Self.edgePath(level: level, phase: 2 * .pi * Double(index) / Double(frames), amplitude: amplitude, in: rect)
+        }
+        wave.duration = Self.wavePeriod
+        edge.add(Self.looping(wave), forKey: Self.waveKey)
+
+        let pass = CABasicAnimation(keyPath: "position.x")
+        pass.fromValue = -sweepWidth / 2
+        pass.toValue = size.width * 1.05 + sweepWidth / 2
+        pass.duration = Self.sweepPeriod
+        sweep.add(Self.looping(pass), forKey: Self.sweepKey)
+    }
+
+    private static func looping(_ animation: CAAnimation) -> CAAnimation {
+        animation.repeatCount = .infinity
+        animation.isRemovedOnCompletion = false
+        animation.preferredFrameRateRange = CAFrameRateRange(minimum: 15, maximum: 30, preferred: 30)
+        return animation
+    }
+
+    /// O líquido até o nível, com a borda da direita em onda. A onda sobe conforme a fase anda.
+    private static func edgePath(level: CGFloat, phase: Double, amplitude: CGFloat, in rect: CGRect) -> CGPath {
+        let surface = max(rect.width * level, 2)
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: surface, y: rect.maxY))
         let steps = 12
         for step in 0...steps {
-            let y = rect.height * CGFloat(step) / CGFloat(steps)
-            let wave = sin(Double(y / rect.height) * .pi * 2 + phase)
-            path.addLine(to: CGPoint(x: min(edge + amplitude * CGFloat(wave), rect.maxX), y: y))
+            // Contado de cima para baixo, como no desenho original; o Core Animation conta de baixo.
+            let fromTop = CGFloat(step) / CGFloat(steps)
+            let wave = sin(Double(fromTop) * .pi * 2 + phase)
+            path.addLine(to: CGPoint(x: min(surface + amplitude * CGFloat(wave), rect.maxX), y: rect.maxY - rect.height * fromTop))
         }
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
         path.closeSubpath()
         return path
     }

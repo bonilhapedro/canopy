@@ -14,7 +14,7 @@ public enum MeetingLink {
     ]
 
     /// Criado uma vez só: montar o detector custa bem mais do que usá-lo, e ele é só de leitura.
-    nonisolated(unsafe) private static let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+    private static let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
 
     /// O primeiro link de chamada encontrado, na ordem dos textos.
     public static func find(in texts: [String?]) -> URL? {
