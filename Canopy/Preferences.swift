@@ -27,7 +27,8 @@ enum SettingsKey {
 
 /// Valores padrão dos Ajustes e atalhos para ler cada um fora das views.
 enum Preferences {
-    static let defaults: [String: Any] = [
+    // Só é lido; o dicionário nunca muda depois de criado.
+    nonisolated(unsafe) static let defaults: [String: Any] = [
         SettingsKey.glassIsland: true,
         SettingsKey.glassDarkness: 0.25,
         SettingsKey.expandOnHover: true,
