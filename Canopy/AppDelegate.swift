@@ -59,6 +59,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         startModules()
+        #if BENCHMARK
+        runBenchmark()
+        #endif
     }
 
     private func applyPreferences() {
@@ -224,3 +227,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 }
+
+#if BENCHMARK
+// MARK: - Medição
+
+/// Cenários fixos para medir memória e CPU sem ninguém mexendo no Mac, como no CI.
+/// Só existem nos builds com BENCHMARK; veja scripts/benchmark.sh.
+extension AppDelegate {
+    private func runBenchmark() {
+        let scenario = UserDefaults.standard.string(forKey: "benchmarkScenario") ?? "idle"
+        switch scenario {
+        case "music":
+            music.simulatePlayback()
+        case "music-expanded":
+            music.simulatePlayback()
+            coordinator.click()
+        case "timer":
+            timer.start(minutes: 25)
+        case "privacy":
+            privacy.simulateMicrophone()
+        case "home":
+            coordinator.click()
+        default:
+            break
+        }
+        // Prova no log que a ilha está mesmo na tela.
+        let screens = NSScreen.screens.map { "\($0.frame)" }.joined(separator: ", ")
+        let panel = windowController?.panelFrame ?? .zero
+        FileHandle.standardError.write(Data("benchmark: scenario=\(scenario) phase=\(coordinator.phase) screens=[\(screens)] panel=\(panel)\n".utf8))
+    }
+}
+#endif

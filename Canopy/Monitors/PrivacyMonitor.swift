@@ -23,6 +23,16 @@ final class PrivacyMonitor {
         }
     }
 
+    #if BENCHMARK
+    /// Microfone "em uso" sem gravar nada, para medir a ilha nesse estado.
+    func simulateMicrophone() {
+        timer?.invalidate()
+        timer = nil
+        isMicrophoneInUse = true
+        onChange?()
+    }
+    #endif
+
     private func refresh() {
         let microphone = Self.microphoneInUse()
         let camera = Self.cameraInUse()

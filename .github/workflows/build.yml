@@ -25,3 +25,11 @@ jobs:
             -configuration Debug \
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO
+
+  perf:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Memória e CPU em cenários fixos
+        run: scripts/benchmark.sh

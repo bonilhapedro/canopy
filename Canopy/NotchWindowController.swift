@@ -39,6 +39,10 @@ final class NotchWindowController {
     /// A tela onde a ilha está.
     var screen: NSScreen? { panel.screen ?? NSScreen.withNotch ?? NSScreen.main }
 
+    #if BENCHMARK
+    var panelFrame: CGRect { panel.isVisible ? panel.frame : .zero }
+    #endif
+
     func show() {
         reposition()
         applyPreferences()

@@ -1,5 +1,8 @@
 import AppKit
 import CanopyCore
+#if BENCHMARK
+import ImageIO
+#endif
 import Observation
 import SwiftUI
 
@@ -112,6 +115,49 @@ final class MusicController {
         track.capturedAt = .now
         nowPlaying = track
     }
+
+    #if BENCHMARK
+    /// Uma faixa falsa tocando, com uma capa grande de verdade, para medir sem depender de um player.
+    func simulatePlayback() {
+        let track = NowPlaying(
+            player: .spotify,
+            title: "Uma faixa com um título comprido o bastante para rolar na ilha",
+            artist: "Artista de teste com um nome bem longo também",
+            album: "Canopy",
+            isPlaying: true,
+            duration: 245,
+            position: 12,
+            capturedAt: .now
+        )
+        nowPlaying = track
+        artworkKey = track.trackKey
+        setArtwork(Self.benchmarkArtwork().flatMap(NSImage.init(data:)))
+        onChange?()
+    }
+
+    /// Uma capa de 1000 por 1000 em JPEG, do tamanho das que o Spotify e o Apple Music mandam.
+    private static func benchmarkArtwork() -> Data? {
+        let side = 1000
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(
+                  data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: 0,
+                  space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ),
+              let gradient = CGGradient(
+                  colorsSpace: space,
+                  colors: [CGColor(red: 0.95, green: 0.35, blue: 0.45, alpha: 1), CGColor(red: 0.2, green: 0.3, blue: 0.9, alpha: 1)] as CFArray,
+                  locations: nil
+              )
+        else { return nil }
+        context.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: side, y: side), options: [])
+        guard let image = context.makeImage() else { return nil }
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, "public.jpeg" as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return data as Data
+    }
+    #endif
 
     // MARK: - Notificações
 
