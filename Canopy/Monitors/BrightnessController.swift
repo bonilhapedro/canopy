@@ -24,14 +24,22 @@ final class BrightnessController {
     /// Quem recebe os avisos do DisplayServices, que chegam numa função C sem contexto.
     fileprivate static weak var current: BrightnessController?
 
-    var isAvailable: Bool { api != nil && display != nil }
+    /// Se dá para mudar o brilho agora. Sem a tela embutida, procura de novo: ela pode ter voltado
+    /// (tampa aberta, tela acordando) sem o macOS avisar que as telas mudaram.
+    var isAvailable: Bool {
+        if display == nil { bindToBuiltInDisplay() }
+        return api != nil && display != nil
+    }
 
     func start() {
         Self.current = self
         let center = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.screensDidWakeNotification, NSWorkspace.didWakeNotification] {
             wakeObservers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.quietUntil = .now.addingTimeInterval(3) }
+                MainActor.assumeIsolated {
+                    self?.quietUntil = .now.addingTimeInterval(3)
+                    self?.bindToBuiltInDisplay()
+                }
             })
         }
         bindToBuiltInDisplay()
