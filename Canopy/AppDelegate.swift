@@ -14,6 +14,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let battery = BatteryMonitor()
     private let privacy = PrivacyMonitor()
     private let volume = VolumeMonitor()
+    private let brightness = BrightnessController()
+    private let mediaKeys = MediaKeyInterceptor()
     private let lock = LockMonitor()
     private let output = AudioOutputMonitor()
     private let fullscreen = FullscreenMonitor()
@@ -65,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let showsWeather = Preferences.weatherEnabled
         if coordinator.showsWeather != showsWeather { coordinator.showsWeather = showsWeather }
         windowController?.applyPreferences()
+        mediaKeys.setEnabled(Preferences.replaceSystemHUD && (Preferences.volumeHUD || Preferences.brightnessHUD))
         if !Preferences.hideInFullscreen { windowController?.setHidden(false) }
         fullscreen.check()
     }
@@ -82,12 +85,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         privacy.onChange = { [weak self] in self?.privacyChanged() }
         privacy.start()
 
-        volume.onChange = { [weak self] in
-            guard let self, Preferences.volumeHUD else { return }
-            let tint = Preferences.matchSongColor && music.nowPlaying?.isPlaying == true ? music.accent ?? .white : .white
-            coordinator.flash(VolumeActivity(volume: volume, tint: tint), for: .seconds(1.5))
-        }
+        volume.onChange = { [weak self] in self?.showVolume() }
         volume.start()
+
+        brightness.onChange = { [weak self] in self?.showBrightness() }
+        brightness.start()
+
+        mediaKeys.handler = { [weak self] key, fine in
+            self?.mediaKeyPressed(key, fine: fine) ?? false
+        }
 
         output.onChange = { [weak self] kind, name in
             guard Preferences.outputAlerts else { return }
@@ -118,6 +124,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.windowController?.setHidden(isFullscreen && Preferences.hideInFullscreen)
         }
         fullscreen.start()
+    }
+
+    private func showVolume() {
+        guard Preferences.volumeHUD else { return }
+        let tint = Preferences.matchSongColor && music.nowPlaying?.isPlaying == true ? music.accent ?? .white : .white
+        coordinator.flash(VolumeActivity(volume: volume, tint: tint), for: .seconds(1.5))
+    }
+
+    private func showBrightness() {
+        guard Preferences.brightnessHUD else { return }
+        coordinator.flash(BrightnessActivity(brightness: brightness), for: .seconds(1.5))
+    }
+
+    /// As teclas de volume e brilho, já tiradas do macOS. Devolver false deixa a tecla seguir para ele,
+    /// como numa saída de áudio sem controle de volume (HDMI) ou com o indicador da ilha desligado.
+    private func mediaKeyPressed(_ key: MediaKeyInterceptor.Key, fine: Bool) -> Bool {
+        switch key {
+        case .volumeUp, .volumeDown:
+            guard Preferences.volumeHUD, volume.canSetVolume else { return false }
+            volume.step(up: key == .volumeUp, fine: fine)
+            // No máximo ou no zero o volume não muda, mas o indicador aparece mesmo assim, como no macOS.
+            showVolume()
+        case .mute:
+            guard Preferences.volumeHUD, volume.canMute else { return false }
+            volume.setMuted(!volume.isMuted)
+            showVolume()
+        case .brightnessUp, .brightnessDown:
+            guard Preferences.brightnessHUD, brightness.isAvailable else { return false }
+            brightness.step(up: key == .brightnessUp, fine: fine)
+        }
+        return true
     }
 
     /// Pausada, a música continua na ilha por 30 segundos antes de sair.

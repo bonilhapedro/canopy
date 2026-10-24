@@ -39,6 +39,40 @@ final class VolumeMonitor {
         }
     }
 
+    /// Se a saída atual deixa mudar o volume por software. HDMI e alguns USB não deixam.
+    var canSetVolume: Bool { isSettable(kAudioHardwareServiceDeviceProperty_VirtualMainVolume) }
+    var canMute: Bool { isSettable(kAudioDevicePropertyMute) }
+
+    private func isSettable(_ selector: AudioObjectPropertySelector) -> Bool {
+        guard device != kAudioObjectUnknown else { return false }
+        var address = Self.outputAddress(selector)
+        var settable: DarwinBoolean = false
+        return AudioObjectIsPropertySettable(device, &address, &settable) == noErr && settable.boolValue
+    }
+
+    /// Um passo nas teclas de volume: 1/16 da escala, ou 1/64 com Option+Shift, como no macOS.
+    func step(up: Bool, fine: Bool) {
+        let steps: Float = fine ? 64 : 16
+        let target = ((volume * steps).rounded() + (up ? 1 : -1)) / steps
+        setVolume(min(max(target, 0), 1))
+        // Subir o volume tira do mudo, como no macOS.
+        if up, isMuted { setMuted(false) }
+    }
+
+    func setVolume(_ value: Float) {
+        var level = Float32(value)
+        var address = Self.outputAddress(kAudioHardwareServiceDeviceProperty_VirtualMainVolume)
+        AudioObjectSetPropertyData(device, &address, 0, nil, UInt32(MemoryLayout<Float32>.size), &level)
+        read()
+    }
+
+    func setMuted(_ muted: Bool) {
+        var value: UInt32 = muted ? 1 : 0
+        var address = Self.outputAddress(kAudioDevicePropertyMute)
+        AudioObjectSetPropertyData(device, &address, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value)
+        read()
+    }
+
     private func volumeDidChange() {
         read()
         onChange?()

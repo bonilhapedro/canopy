@@ -16,6 +16,8 @@ enum SettingsKey {
     static let batteryAlerts = "batteryAlerts"
     static let outputAlerts = "outputAlerts"
     static let volumeHUD = "volumeHUD"
+    static let brightnessHUD = "brightnessHUD"
+    static let replaceSystemHUD = "replaceSystemHUD"
     static let matchSongColor = "matchSongColor"
     static let weatherEnabled = "weatherEnabled"
     static let preciseLocation = "preciseLocation"
@@ -42,6 +44,8 @@ enum Preferences {
         SettingsKey.batteryAlerts: true,
         SettingsKey.outputAlerts: true,
         SettingsKey.volumeHUD: true,
+        SettingsKey.brightnessHUD: true,
+        SettingsKey.replaceSystemHUD: true,
         SettingsKey.matchSongColor: true,
         SettingsKey.weatherEnabled: true,
         SettingsKey.preciseLocation: false,
@@ -78,6 +82,8 @@ enum Preferences {
     static var batteryAlerts: Bool { bool(SettingsKey.batteryAlerts) }
     static var outputAlerts: Bool { bool(SettingsKey.outputAlerts) }
     static var volumeHUD: Bool { bool(SettingsKey.volumeHUD) }
+    static var brightnessHUD: Bool { bool(SettingsKey.brightnessHUD) }
+    static var replaceSystemHUD: Bool { bool(SettingsKey.replaceSystemHUD) }
     static var matchSongColor: Bool { bool(SettingsKey.matchSongColor) }
     static var weatherEnabled: Bool { bool(SettingsKey.weatherEnabled) }
     static var preciseLocation: Bool { bool(SettingsKey.preciseLocation) }

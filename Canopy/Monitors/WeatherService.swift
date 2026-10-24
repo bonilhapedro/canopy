@@ -1,6 +1,7 @@
 import CanopyCore
 import CoreLocation
 import Foundation
+import MapKit
 import Observation
 
 /// Busca o clima no Open-Meteo. A localização vem do IP, ou do GPS do Mac com a
@@ -108,7 +109,7 @@ private final class PreciseLocator: NSObject, CLLocationManagerDelegate {
     var onFail: (() -> Void)?
 
     private let manager = CLLocationManager()
-    private let geocoder = CLGeocoder()
+    private var geocoding: MKReverseGeocodingRequest?
     private var isWaiting = false
 
     override init() {
@@ -142,9 +143,17 @@ private final class PreciseLocator: NSObject, CLLocationManagerDelegate {
     private func located(latitude: Double, longitude: Double) {
         guard isWaiting else { return }
         isWaiting = false
-        geocoder.reverseGeocodeLocation(CLLocation(latitude: latitude, longitude: longitude)) { placemarks, _ in
-            let city = placemarks?.first?.locality
-            Task { @MainActor in self.onLocate?(latitude, longitude, city) }
+        guard let request = MKReverseGeocodingRequest(location: CLLocation(latitude: latitude, longitude: longitude)) else {
+            onLocate?(latitude, longitude, nil)
+            return
+        }
+        geocoding = request
+        request.getMapItems { @Sendable items, _ in
+            let city = items?.first?.addressRepresentations?.cityName
+            Task { @MainActor in
+                self.geocoding = nil
+                self.onLocate?(latitude, longitude, city)
+            }
         }
     }
 

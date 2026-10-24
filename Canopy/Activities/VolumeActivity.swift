@@ -21,7 +21,7 @@ final class VolumeActivity: IslandActivity {
     let tabSymbol = "speaker.wave.2.fill"
 
     var compactLeading: AnyView { AnyView(VolumeIcon(volume: volume).font(.system(size: 13, weight: .semibold))) }
-    var compactTrailing: AnyView { AnyView(VolumeSegments(volume: volume, tint: tint)) }
+    var compactTrailing: AnyView { AnyView(VolumeLevel(volume: volume) { LevelSegments(level: $0, tint: self.tint) }) }
     var minimal: AnyView { AnyView(VolumeIcon(volume: volume)) }
 
     var expanded: AnyView {
@@ -30,12 +30,10 @@ final class VolumeActivity: IslandActivity {
                 VolumeIcon(volume: volume)
                     .font(.system(size: 22, weight: .semibold))
                     .frame(width: 34)
-                VolumeBar(volume: volume, tint: tint)
-                Text(volume.isMuted ? "Mudo" : "\(Int((volume.volume * 100).rounded()))")
-                    .font(.system(size: 20, weight: .semibold))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .frame(width: 56, alignment: .trailing)
+                VolumeLevel(volume: volume) { level in
+                    LevelBar(level: level, tint: self.tint)
+                    LevelPercent(text: self.volume.isMuted ? "Mudo" : "\(Int((level * 100).rounded()))")
+                }
             }
             .foregroundStyle(.white)
             .frame(maxHeight: .infinity)
@@ -61,40 +59,12 @@ private struct VolumeIcon: View {
     }
 }
 
-/// Dez segmentos que acendem com o volume, como no iPhone.
-private struct VolumeSegments: View {
+/// Lê o volume dentro do próprio body, para só este pedaço redesenhar quando ele muda.
+private struct VolumeLevel<Content: View>: View {
     let volume: VolumeMonitor
-    let tint: Color
+    @ViewBuilder let content: (Double) -> Content
 
     var body: some View {
-        let lit = volume.isMuted ? 0 : Int((volume.volume * 10).rounded(.up))
-        HStack(spacing: 2) {
-            ForEach(0..<10, id: \.self) { index in
-                Capsule()
-                    .fill(index < lit ? tint : Color.white.opacity(0.18))
-                    .frame(width: 3, height: 6 + CGFloat(index) * 0.7)
-            }
-        }
-        .animation(.snappy(duration: 0.15), value: lit)
-    }
-}
-
-private struct VolumeBar: View {
-    let volume: VolumeMonitor
-    let tint: Color
-
-    var body: some View {
-        let level = volume.isMuted ? 0 : CGFloat(volume.volume)
-        GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.16))
-                Capsule()
-                    .fill(LinearGradient(colors: [tint.opacity(0.7), tint], startPoint: .leading, endPoint: .trailing))
-                    .frame(width: max(10, geometry.size.width * level))
-                    .shadow(color: tint.opacity(0.6), radius: 6)
-            }
-        }
-        .frame(height: 10)
-        .animation(.snappy(duration: 0.18), value: level)
+        content(volume.isMuted ? 0 : Double(volume.volume))
     }
 }

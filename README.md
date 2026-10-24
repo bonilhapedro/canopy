@@ -30,12 +30,17 @@ Atividades que aparecem ao lado do notch:
 - **Desbloqueio**: o cadeado abre na ilha logo depois de desbloquear o Mac com o Touch ID.
 - **Microfone e câmera**: enquanto algum app usa um deles.
 - **Volume**: indicador rápido, na cor da música que está tocando.
+- **Brilho**: indicador da tela embutida, com um sol que gira conforme o brilho sobe.
+
+Com **Esconder o indicador do macOS** ligado (em Ajustes › Volume e brilho), as teclas de volume e brilho passam pelo Canopy e só a ilha aparece. Option+Shift muda em passos menores e Option sozinho abre os Ajustes do Sistema, como no macOS.
 
 Tudo isso liga e desliga em **Ajustes**, que também controla o Liquid Glass (claro ou escuro), o tamanho da pílula, abrir com o mouse, vibração e esconder em tela cheia ou em gravações de tela.
 
 ### Permissões
 
-O macOS pede cada uma na primeira vez que ela é usada: Automação (Apple Music e Spotify), Agenda (ao tocar em Conectar agenda) e Localização (só com a localização precisa ligada). Como o app é assinado localmente, o macOS pode pedir de novo depois de um build novo.
+O macOS pede cada uma na primeira vez que ela é usada: Automação (Apple Music e Spotify), Agenda (ao tocar em Conectar agenda), Localização (só com a localização precisa ligada) e Acessibilidade (para esconder o indicador de volume e brilho do macOS).
+
+Como o app é assinado localmente, o macOS pode esquecer as permissões depois de um build novo. Para Acessibilidade, tire o Canopy da lista com o botão − e adicione de novo. Para não ter que repetir isso, escolha o seu Apple ID em **Team**, na aba Signing & Capabilities do Xcode.
 
 ## Estrutura
 

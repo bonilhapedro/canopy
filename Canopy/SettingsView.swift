@@ -61,7 +61,7 @@ enum SettingsSection: String, Identifiable, Hashable {
         case .media: "Mídia"
         case .fileTray: "Bandeja de arquivos"
         case .battery: "Bateria"
-        case .audio: "Volume e saída"
+        case .audio: "Volume e brilho"
         case .calendar: "Agenda"
         case .weather: "Clima"
         case .timer: "Timer"
@@ -76,7 +76,7 @@ enum SettingsSection: String, Identifiable, Hashable {
         case .media: "music.note"
         case .fileTray: "tray.full"
         case .battery: "battery.75percent"
-        case .audio: "airpodspro"
+        case .audio: "sun.max"
         case .calendar: "calendar"
         case .weather: "cloud.sun"
         case .timer: "timer"
@@ -322,18 +322,54 @@ private struct BatterySettings: View {
 
 private struct AudioSettings: View {
     @AppStorage(SettingsKey.volumeHUD) private var volumeHUD = true
+    @AppStorage(SettingsKey.brightnessHUD) private var brightnessHUD = true
+    @AppStorage(SettingsKey.replaceSystemHUD) private var replaceSystemHUD = true
     @AppStorage(SettingsKey.outputAlerts) private var outputAlerts = true
+    @State private var isTrusted = MediaKeyInterceptor.isTrusted
 
     var body: some View {
         Form {
             Section {
                 Toggle("Mostrar o volume na ilha", isOn: $volumeHUD)
+                Toggle("Mostrar o brilho na ilha", isOn: $brightnessHUD)
+                Toggle("Esconder o indicador do macOS", isOn: $replaceSystemHUD)
+                    .disabled(!volumeHUD && !brightnessHUD)
+            } header: {
+                Text("Indicadores")
+            } footer: {
+                Text("As teclas de volume e brilho passam pelo Canopy e só a ilha aparece. Option+Shift muda em passos menores e Option sozinho abre os Ajustes do Sistema, como sempre.")
+            }
+            if replaceSystemHUD {
+                Section {
+                    LabeledContent("Acessibilidade") {
+                        if isTrusted {
+                            Text("Permitido").foregroundStyle(.green)
+                        } else {
+                            Button("Abrir Ajustes do Sistema", action: MediaKeyInterceptor.openAccessibilitySettings)
+                        }
+                    }
+                } header: {
+                    Text("Acesso")
+                } footer: {
+                    Text("O macOS só entrega as teclas antes dele para apps liberados em Privacidade e Segurança › Acessibilidade. Se o Canopy já está ligado na lista e não funciona, tire ele com o botão − e adicione de novo; isso acontece depois de um build novo.")
+                }
+            }
+            Section {
                 Toggle("Avisar quando a saída de áudio mudar", isOn: $outputAlerts)
+            } header: {
+                Text("Saída de áudio")
             } footer: {
                 Text("Ao conectar AirPods, fones ou um monitor, a ilha mostra o aparelho novo com o ícone dele.")
             }
         }
         .formStyle(.grouped)
+        .task {
+            // A permissão é dada nos Ajustes do Sistema; olha de novo a cada segundo enquanto esta tela está aberta.
+            while !Task.isCancelled {
+                isTrusted = MediaKeyInterceptor.isTrusted
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
     }
 }
 
