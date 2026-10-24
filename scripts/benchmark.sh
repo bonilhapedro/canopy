@@ -12,12 +12,12 @@ cd "$(dirname "$0")/.."
 
 SCENARIOS=("$@")
 if [ ${#SCENARIOS[@]} -eq 0 ]; then
-  SCENARIOS=(idle music music-expanded timer privacy charging-expanded home tray airpods)
+  SCENARIOS=(idle music music-expanded timer privacy charging-expanded home tray airpods message)
 fi
 WARMUP=${WARMUP:-10}
 WINDOW=${WINDOW:-30}
 BUILD=${BUILD_DIR:-build/benchmark}
-SAMPLE=${SAMPLE:-music music-expanded timer privacy charging-expanded tray airpods}
+SAMPLE=${SAMPLE:-music music-expanded timer privacy charging-expanded tray airpods message}
 
 xcodebuild build \
   -project Canopy.xcodeproj \

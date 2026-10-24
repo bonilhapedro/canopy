@@ -22,6 +22,7 @@ struct CanopyApp: App {
                 .environment(appDelegate.calendar)
                 .environment(appDelegate.weather)
                 .environment(appDelegate.tray)
+                .environment(appDelegate.messages)
         }
     }
 }
