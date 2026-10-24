@@ -6,6 +6,8 @@ struct BatteryGlyph: View {
     let isCharging: Bool
     let tint: Color
     var width: CGFloat = 26
+    /// Carregando, o nível vira um líquido com a borda ondulando e um brilho que passa.
+    var isLive = false
 
     var body: some View {
         let height = width * 0.48
@@ -14,10 +16,17 @@ struct BatteryGlyph: View {
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: height * 0.3, style: .continuous)
                     .stroke(Color.white.opacity(0.45), lineWidth: max(1, width * 0.045))
-                RoundedRectangle(cornerRadius: height * 0.18, style: .continuous)
-                    .fill(tint)
-                    .frame(width: max(2, (width - 4) * level), height: height - 4)
-                    .padding(.leading, 2)
+                if isLive && isCharging {
+                    LiquidLevel(level: level, tint: tint)
+                        .frame(width: width - 4, height: height - 4)
+                        .clipShape(RoundedRectangle(cornerRadius: height * 0.18, style: .continuous))
+                        .padding(.leading, 2)
+                } else {
+                    RoundedRectangle(cornerRadius: height * 0.18, style: .continuous)
+                        .fill(tint)
+                        .frame(width: max(2, (width - 4) * level), height: height - 4)
+                        .padding(.leading, 2)
+                }
                 if isCharging {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: height * 0.72, weight: .heavy))
@@ -64,5 +73,57 @@ struct BatteryRing: View {
             }
         }
         .frame(width: 66, height: 66)
+    }
+}
+
+/// O nível da bateria como líquido: a borda da direita ondula e um brilho atravessa.
+private struct LiquidLevel: View {
+    let level: CGFloat
+    let tint: Color
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 30)) { context in
+            let time = context.date.timeIntervalSinceReferenceDate
+            GeometryReader { geometry in
+                let size = geometry.size
+                ZStack(alignment: .leading) {
+                    LiquidEdge(level: level, phase: time * 3.2, amplitude: max(1, size.height * 0.08))
+                        .fill(LinearGradient(colors: [tint.opacity(0.75), tint], startPoint: .leading, endPoint: .trailing))
+                    // O brilho que corre da esquerda para a direita, como no iPhone carregando.
+                    let sweep = CGFloat((time * 0.6).truncatingRemainder(dividingBy: 1))
+                    LinearGradient(
+                        colors: [.white.opacity(0), .white.opacity(0.55), .white.opacity(0)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: size.width * 0.35)
+                    .offset(x: size.width * (sweep * 1.4 - 0.35))
+                    .mask(LiquidEdge(level: level, phase: time * 3.2, amplitude: max(1, size.height * 0.08)))
+                    .blendMode(.plusLighter)
+                }
+            }
+        }
+    }
+}
+
+private struct LiquidEdge: Shape {
+    var level: CGFloat
+    var phase: Double
+    var amplitude: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let edge = max(rect.width * level, 2)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: edge, y: rect.minY))
+        let steps = 12
+        for step in 0...steps {
+            let y = rect.height * CGFloat(step) / CGFloat(steps)
+            let wave = sin(Double(y / rect.height) * .pi * 2 + phase)
+            path.addLine(to: CGPoint(x: min(edge + amplitude * CGFloat(wave), rect.maxX), y: y))
+        }
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }

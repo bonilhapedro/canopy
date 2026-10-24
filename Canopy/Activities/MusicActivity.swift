@@ -19,6 +19,7 @@ final class MusicActivity: IslandActivity {
     var expanded: AnyView { AnyView(MusicExpandedView(music: music)) }
     var accent: Color? { music.accent }
     var backdrop: AnyView? { AnyView(ArtworkBackdrop(music: music)) }
+    let tabSymbol = "music.note"
 }
 
 private struct ArtworkView: View {
@@ -51,6 +52,14 @@ private struct ArtworkView: View {
                 .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
         )
         .animation(.easeInOut(duration: 0.3), value: music.artwork == nil)
+        // Troca de faixa: a capa vira como uma carta.
+        .keyframeAnimator(initialValue: 0.0, trigger: music.nowPlaying?.trackKey) { content, angle in
+            content.rotation3DEffect(.degrees(angle), axis: (x: 0, y: 1, z: 0), perspective: 0.5)
+        } keyframes: { _ in
+            LinearKeyframe(90, duration: 0.16, timingCurve: .easeIn)
+            MoveKeyframe(-90)
+            SpringKeyframe(0, duration: 0.55, spring: .bouncy)
+        }
     }
 }
 
@@ -126,27 +135,36 @@ private struct MusicExpandedView: View {
             let tint = music.accent ?? .white
             VStack(spacing: 10) {
                 HStack(spacing: 12) {
-                    ArtworkView(music: music, size: 56, cornerRadius: 12)
-                        .shadow(color: tint.opacity(0.45), radius: 12, y: 4)
-                        .scaleEffect(track.isPlaying ? 1 : 0.92)
-                        .animation(.bouncy(duration: 0.4), value: track.isPlaying)
+                    Button(action: music.activatePlayer) {
+                        ArtworkView(music: music, size: 56, cornerRadius: 12)
+                            .overlay(alignment: .bottomTrailing) {
+                                if let icon = music.icon(for: track.player) {
+                                    Image(nsImage: icon)
+                                        .resizable()
+                                        .frame(width: 20, height: 20)
+                                        .shadow(color: .black.opacity(0.5), radius: 2)
+                                        .offset(x: 6, y: 6)
+                                }
+                            }
+                            .shadow(color: tint.opacity(0.5), radius: 14, y: 4)
+                            .scaleEffect(track.isPlaying ? 1 : 0.9)
+                            .animation(.bouncy(duration: 0.4), value: track.isPlaying)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Abrir o \(track.player == .appleMusic ? "Apple Music" : "Spotify")")
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(track.title)
-                            .font(.system(size: 15, weight: .bold))
-                            .lineLimit(1)
-                        Text(track.artist)
-                            .font(.system(size: 13, weight: .medium))
+                        MarqueeText(text: track.title, font: .system(size: 15, weight: .bold))
+                        MarqueeText(text: track.artist, font: .system(size: 13, weight: .medium))
                             .foregroundStyle(.white.opacity(0.55))
-                            .lineLimit(1)
                     }
-                    .contentTransition(.opacity)
-                    .animation(.easeInOut(duration: 0.25), value: track.trackKey)
-
-                    Spacer(minLength: 8)
+                    .id(track.trackKey)
+                    .transition(.blurReplace)
 
                     EqualizerBars(music: music, bars: 6, barWidth: 3.5, maxHeight: 24)
                 }
+                .animation(.smooth(duration: 0.35), value: track.trackKey)
+                .entrance(0)
 
                 ZStack {
                     if showsVolume {
@@ -159,15 +177,27 @@ private struct MusicExpandedView: View {
                 }
                 .frame(height: 24)
                 .animation(.smooth(duration: 0.25), value: showsVolume)
+                .entrance(1)
 
                 GlassEffectContainer(spacing: 8) {
                     HStack(spacing: 0) {
-                        Button(action: music.toggleShuffle) {
-                            Image(systemName: "shuffle")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(music.isShuffling ? tint : Color.white.opacity(0.5))
+                        HStack(spacing: 2) {
+                            Button(action: music.toggleShuffle) {
+                                Image(systemName: "shuffle")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(music.isShuffling ? tint : Color.white.opacity(0.45))
+                            }
+                            .buttonStyle(IslandButtonStyle(size: 32))
+                            .help("Aleatório")
+                            Button(action: music.cycleRepeat) {
+                                Image(systemName: music.repeatMode.symbol)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(music.repeatMode == .off ? Color.white.opacity(0.45) : tint)
+                                    .contentTransition(.symbolEffect(.replace))
+                            }
+                            .buttonStyle(IslandButtonStyle(size: 32))
+                            .help("Repetir")
                         }
-                        .buttonStyle(IslandButtonStyle(size: 32))
                         Spacer(minLength: 0)
                         Button(action: music.previousTrack) {
                             Image(systemName: "backward.fill").font(.system(size: 20))
@@ -179,21 +209,38 @@ private struct MusicExpandedView: View {
                                 .contentTransition(.symbolEffect(.replace))
                         }
                         .buttonStyle(IslandButtonStyle(size: 44))
-                        .padding(.horizontal, 14)
+                        .padding(.horizontal, 12)
                         Button(action: music.nextTrack) {
                             Image(systemName: "forward.fill").font(.system(size: 20))
                         }
                         .buttonStyle(IslandButtonStyle(size: 38))
                         Spacer(minLength: 0)
-                        Button { showsVolume.toggle() } label: {
-                            Image(systemName: showsVolume ? "speaker.wave.2.fill" : "hifispeaker.fill")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(showsVolume ? tint : Color.white.opacity(0.85))
-                                .contentTransition(.symbolEffect(.replace))
+                        HStack(spacing: 2) {
+                            if let isFavorite = music.isFavorite {
+                                Button(action: music.toggleFavorite) {
+                                    Image(systemName: isFavorite ? "heart.fill" : "heart")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(isFavorite ? Color.pink : Color.white.opacity(0.85))
+                                        .contentTransition(.symbolEffect(.replace))
+                                        .symbolEffect(.bounce, value: isFavorite)
+                                }
+                                .buttonStyle(IslandButtonStyle(size: 32))
+                                .help("Favoritar")
+                            } else {
+                                Color.clear.frame(width: 32, height: 32)
+                            }
+                            Button { showsVolume.toggle() } label: {
+                                Image(systemName: showsVolume ? "speaker.wave.2.fill" : "hifispeaker.fill")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(showsVolume ? tint : Color.white.opacity(0.85))
+                                    .contentTransition(.symbolEffect(.replace))
+                            }
+                            .buttonStyle(IslandButtonStyle(size: 32))
+                            .help("Volume do player")
                         }
-                        .buttonStyle(IslandButtonStyle(size: 32))
                     }
                 }
+                .entrance(2)
             }
             .foregroundStyle(.white)
             .frame(maxHeight: .infinity)

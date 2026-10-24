@@ -4,8 +4,12 @@ import SwiftUI
 
 struct IslandView: View {
     @Environment(IslandCoordinator.self) private var coordinator
+    @Environment(TimerController.self) private var timer
     @AppStorage(SettingsKey.glassIsland) private var glassIsland = true
     @AppStorage(SettingsKey.glassDarkness) private var glassDarkness = 0.25
+    /// Onde o mouse está sobre a ilha, para o reflexo na borda de vidro.
+    /// Fica num objeto à parte para não redesenhar a ilha inteira a cada movimento.
+    @State private var light = PointerLight()
 
     var body: some View {
         let phase = coordinator.phase
@@ -14,6 +18,7 @@ struct IslandView: View {
         let shape = NotchShape(earRadius: metrics.ear, bottomRadius: metrics.bottom)
         let glow = coordinator.primary?.accent ?? .white
         let usesGlass = glassIsland && phase == .expanded
+        let outerSize = CGSize(width: size.width + 2 * metrics.ear, height: size.height)
         // Crescer quica; encolher não, senão o quique passa do tamanho final e a ilha some por um instante.
         let morph: Animation = coordinator.lastChangeGrew
             ? .bouncy(duration: 0.45, extraBounce: 0.1)
@@ -37,9 +42,9 @@ struct IslandView: View {
                     .opacity(usesGlass ? 0 : 1)
                 if phase == .expanded {
                     if usesGlass {
-                        // Um brilho leve na cor da capa, sem tapar o que está atrás do vidro.
+                        // Um brilho leve na cor da atividade, sem tapar o que está atrás do vidro.
                         RadialGradient(
-                            colors: [glow.opacity(0.16), glow.opacity(0)],
+                            colors: [glow.opacity(0.18), glow.opacity(0)],
                             center: .bottomLeading,
                             startRadius: 10,
                             endRadius: size.width * 0.8
@@ -79,18 +84,34 @@ struct IslandView: View {
                 )
                 .opacity(usesGlass ? 1 : 0)
         }
+        .overlay {
+            if usesGlass {
+                GlassHighlight(light: light, shape: shape, size: outerSize)
+            }
+        }
         .contentShape(shape)
         .shadow(color: .black.opacity(phase == .expanded ? 0.35 : 0), radius: 18, y: 8)
-        .shadow(color: glow.opacity(phase == .expanded ? 0.28 : 0), radius: 24)
+        .shadow(color: glow.opacity(phase == .expanded ? 0.22 : 0), radius: 24)
         .onHover { coordinator.pointer(inside: $0) }
+        .onContinuousHover { hover in
+            switch hover {
+            case .active(let point): light.point = point
+            case .ended: light.point = nil
+            }
+        }
         .onTapGesture { coordinator.click() }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(morph, value: phase)
         .animation(morph, value: size)
         .onChange(of: phase) { _, newPhase in
             // Um toque leve no trackpad quando a ilha abre.
-            if newPhase == .expanded {
+            if newPhase == .expanded, Preferences.haptics {
                 NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+            }
+        }
+        .onChange(of: coordinator.currentPage) {
+            if Preferences.haptics {
+                NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
             }
         }
         .environment(\.colorScheme, .dark)
@@ -120,26 +141,169 @@ struct IslandView: View {
     }
 
     private var expandedContent: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if let primary = coordinator.primary {
-                primary.expanded
-            } else {
-                IdleView()
+        let page = coordinator.currentPage
+        let step = coordinator.pageStep
+        return VStack(spacing: 0) {
+            IslandHeader()
+                .frame(height: coordinator.layout.notch.height)
+            ZStack {
+                pageContent(page)
+                    .id(page)
+                    .transition(
+                        AnyTransition.asymmetric(
+                            insertion: .offset(x: 46 * CGFloat(step)),
+                            removal: .offset(x: -46 * CGFloat(step))
+                        )
+                        .combined(with: AnyTransition(.blurReplace))
+                    )
             }
-            if !coordinator.secondary.isEmpty {
-                HStack(spacing: 8) {
-                    ForEach(coordinator.secondary, id: \.id) { activity in
-                        activity.minimal
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .glassEffect(.clear, in: Capsule())
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(.top, 8)
+            .padding([.horizontal, .bottom], 22)
+            .animation(.smooth(duration: 0.38), value: page)
+        }
+    }
+
+    @ViewBuilder
+    private func pageContent(_ page: IslandPage) -> some View {
+        switch page {
+        case .now:
+            VStack(alignment: .leading, spacing: 10) {
+                if let primary = coordinator.primary {
+                    primary.expanded
+                }
+                if !coordinator.secondary.isEmpty {
+                    HStack(spacing: 8) {
+                        ForEach(coordinator.secondary, id: \.id) { activity in
+                            activity.minimal
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .glassEffect(.clear, in: Capsule())
+                        }
                     }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        case .home:
+            HomePage()
+        case .weather:
+            WeatherPage()
+        case .timer:
+            TimerPage(timer: timer)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(.top, coordinator.layout.notch.height + 8)
-        .padding([.horizontal, .bottom], 22)
+    }
+}
+
+/// Faixa do topo da ilha aberta, dos dois lados do notch: abas à esquerda, bateria à direita.
+private struct IslandHeader: View {
+    @Environment(IslandCoordinator.self) private var coordinator
+    @Namespace private var tabs
+
+    var body: some View {
+        HStack(spacing: 0) {
+            HStack(spacing: 2) {
+                ForEach(coordinator.pages, id: \.self) { page in
+                    let isSelected = page == coordinator.currentPage
+                    Button {
+                        coordinator.select(page)
+                    } label: {
+                        Image(systemName: symbol(for: page))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.4))
+                            .frame(width: 28, height: 20)
+                            .background {
+                                if isSelected {
+                                    Capsule()
+                                        .fill(Color.white.opacity(0.16))
+                                        .matchedGeometryEffect(id: "selected", in: tabs)
+                                }
+                            }
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .animation(.snappy(duration: 0.3), value: coordinator.currentPage)
+            .animation(.snappy(duration: 0.3), value: coordinator.pages)
+
+            Spacer(minLength: coordinator.layout.notch.width + 16)
+
+            HeaderBattery()
+        }
+        .padding(.horizontal, 20)
+        .entrance(0)
+    }
+
+    private func symbol(for page: IslandPage) -> String {
+        switch page {
+        case .now: coordinator.primary?.tabSymbol ?? "sparkles"
+        case .home: "calendar"
+        case .weather: "cloud.sun.fill"
+        case .timer: "timer"
+        }
+    }
+}
+
+/// Bateria pequena no canto direito, como na barra de status do iPhone.
+private struct HeaderBattery: View {
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { _ in
+            if let battery = BatteryMonitor.read() {
+                let tint: Color = battery.isCharging ? .green : battery.percent <= 20 ? .red : .white
+                HStack(spacing: 5) {
+                    Text("\(battery.percent)%")
+                        .font(.system(size: 11, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.75))
+                    BatteryGlyph(percent: battery.percent, isCharging: battery.isCharging, tint: tint, width: 22)
+                }
+            }
+        }
+    }
+}
+
+@MainActor
+@Observable
+final class PointerLight {
+    var point: CGPoint?
+}
+
+/// Reflexo que acompanha o mouse: a borda acende perto dele e o vidro ganha um brilho suave.
+private struct GlassHighlight: View {
+    let light: PointerLight
+    let shape: NotchShape
+    let size: CGSize
+
+    var body: some View {
+        let point = light.point ?? CGPoint(x: size.width / 2, y: size.height)
+        let center = UnitPoint(
+            x: size.width > 0 ? point.x / size.width : 0.5,
+            y: size.height > 0 ? point.y / size.height : 1
+        )
+        ZStack {
+            RadialGradient(
+                colors: [Color.white.opacity(0.08), Color.white.opacity(0)],
+                center: center,
+                startRadius: 0,
+                endRadius: 220
+            )
+            .clipShape(shape)
+            shape
+                .stroke(
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.8), Color.white.opacity(0)],
+                        center: center,
+                        startRadius: 0,
+                        endRadius: 150
+                    ),
+                    lineWidth: 1.5
+                )
+                .blendMode(.plusLighter)
+        }
+        .opacity(light.point == nil ? 0 : 1)
+        .animation(.smooth(duration: 0.3), value: light.point == nil)
+        .allowsHitTesting(false)
     }
 }
 
@@ -160,42 +324,6 @@ private struct Metrics {
         case .expanded:
             ear = 12
             bottom = 32
-        }
-    }
-}
-
-/// Ilha aberta sem nenhuma atividade: saudação, hora, data e bateria.
-private struct IdleView: View {
-    var body: some View {
-        TimelineView(.everyMinute) { context in
-            HStack(alignment: .center, spacing: 16) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(greeting(for: context.date))
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    Text(context.date, format: .dateTime.hour().minute())
-                        .font(.system(size: 46, weight: .semibold))
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
-                    Text(context.date, format: .dateTime.weekday(.wide).day().month(.wide))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-                if let battery = BatteryMonitor.read() {
-                    BatteryRing(percent: battery.percent, isCharging: battery.isCharging)
-                }
-            }
-            .foregroundStyle(.white)
-            .frame(maxHeight: .infinity)
-        }
-    }
-
-    private func greeting(for date: Date) -> String {
-        switch Calendar.current.component(.hour, from: date) {
-        case 5..<12: "Bom dia"
-        case 12..<18: "Boa tarde"
-        default: "Boa noite"
         }
     }
 }

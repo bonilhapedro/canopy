@@ -57,3 +57,17 @@ struct NotchGeometryTests {
         #expect(layout.size(for: .compact).height == 24)
     }
 }
+
+struct ClosedAdjustmentTests {
+    @Test func userAdjustmentResizesTheClosedIsland() {
+        let layout = IslandLayout(notch: CGSize(width: 180, height: 24), hasNotch: false, closedAdjustment: CGSize(width: 20, height: -4))
+        #expect(layout.size(for: .closed) == CGSize(width: 144, height: 14))
+        // Os outros estados não mudam.
+        #expect(layout.size(for: .compact) == IslandLayout(notch: CGSize(width: 180, height: 24), hasNotch: false).size(for: .compact))
+    }
+
+    @Test func adjustmentNeverMakesItVanish() {
+        let layout = IslandLayout(notch: CGSize(width: 180, height: 24), hasNotch: false, closedAdjustment: CGSize(width: -500, height: -500))
+        #expect(layout.size(for: .closed) == IslandLayout.closedMinimum)
+    }
+}

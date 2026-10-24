@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>O Canopy mostra seus próximos eventos na ilha e avisa alguns minutos antes de cada reunião.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>O Canopy mostra seus próximos eventos na ilha e avisa alguns minutos antes de cada reunião.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Com a localização precisa ligada, o Canopy usa onde você está para mostrar o clima da sua cidade.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Com a localização precisa ligada, o Canopy usa onde você está para mostrar o clima da sua cidade.</string>
+</dict>
+</plist>

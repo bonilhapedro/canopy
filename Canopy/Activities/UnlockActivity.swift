@@ -9,6 +9,7 @@ final class UnlockActivity: IslandActivity {
     let id = UnlockActivity.activityID
     let priority = ActivityPriority.alert
     let accent: Color? = .green
+    let tabSymbol = "lock.open.fill"
 
     var compactLeading: AnyView { AnyView(OpeningLock(size: 15)) }
     var compactTrailing: AnyView {
@@ -66,6 +67,7 @@ final class TouchIDActivity: IslandActivity {
     }
 
     var accent: Color? { TouchIDGlyph.tint(for: touchID.state) }
+    let tabSymbol = "touchid"
     var compactLeading: AnyView { AnyView(TouchIDGlyph(touchID: touchID, size: 16)) }
     var compactTrailing: AnyView {
         AnyView(

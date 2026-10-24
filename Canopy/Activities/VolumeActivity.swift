@@ -9,13 +9,19 @@ final class VolumeActivity: IslandActivity {
     let id = VolumeActivity.activityID
     let priority = ActivityPriority.alert
     private let volume: VolumeMonitor
+    /// Com "combinar com a música", a cor da capa que está tocando.
+    private let tint: Color
 
-    init(volume: VolumeMonitor) {
+    init(volume: VolumeMonitor, tint: Color = .white) {
         self.volume = volume
+        self.tint = tint
     }
 
+    var accent: Color? { tint }
+    let tabSymbol = "speaker.wave.2.fill"
+
     var compactLeading: AnyView { AnyView(VolumeIcon(volume: volume).font(.system(size: 13, weight: .semibold))) }
-    var compactTrailing: AnyView { AnyView(VolumeSegments(volume: volume)) }
+    var compactTrailing: AnyView { AnyView(VolumeSegments(volume: volume, tint: tint)) }
     var minimal: AnyView { AnyView(VolumeIcon(volume: volume)) }
 
     var expanded: AnyView {
@@ -24,7 +30,7 @@ final class VolumeActivity: IslandActivity {
                 VolumeIcon(volume: volume)
                     .font(.system(size: 22, weight: .semibold))
                     .frame(width: 34)
-                VolumeBar(volume: volume)
+                VolumeBar(volume: volume, tint: tint)
                 Text(volume.isMuted ? "Mudo" : "\(Int((volume.volume * 100).rounded()))")
                     .font(.system(size: 20, weight: .semibold))
                     .monospacedDigit()
@@ -58,13 +64,14 @@ private struct VolumeIcon: View {
 /// Dez segmentos que acendem com o volume, como no iPhone.
 private struct VolumeSegments: View {
     let volume: VolumeMonitor
+    let tint: Color
 
     var body: some View {
         let lit = volume.isMuted ? 0 : Int((volume.volume * 10).rounded(.up))
         HStack(spacing: 2) {
             ForEach(0..<10, id: \.self) { index in
                 Capsule()
-                    .fill(index < lit ? Color.white : Color.white.opacity(0.18))
+                    .fill(index < lit ? tint : Color.white.opacity(0.18))
                     .frame(width: 3, height: 6 + CGFloat(index) * 0.7)
             }
         }
@@ -74,6 +81,7 @@ private struct VolumeSegments: View {
 
 private struct VolumeBar: View {
     let volume: VolumeMonitor
+    let tint: Color
 
     var body: some View {
         let level = volume.isMuted ? 0 : CGFloat(volume.volume)
@@ -81,9 +89,9 @@ private struct VolumeBar: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.white.opacity(0.16))
                 Capsule()
-                    .fill(LinearGradient(colors: [.white.opacity(0.75), .white], startPoint: .leading, endPoint: .trailing))
+                    .fill(LinearGradient(colors: [tint.opacity(0.7), tint], startPoint: .leading, endPoint: .trailing))
                     .frame(width: max(10, geometry.size.width * level))
-                    .shadow(color: .white.opacity(0.5), radius: 6)
+                    .shadow(color: tint.opacity(0.6), radius: 6)
             }
         }
         .frame(height: 10)

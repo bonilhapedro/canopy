@@ -18,6 +18,7 @@ final class PrivacyActivity: IslandActivity {
     var compactTrailing: AnyView { AnyView(PrivacyDots(privacy: privacy)) }
     var minimal: AnyView { AnyView(PrivacyIcons(privacy: privacy, size: 11)) }
     var accent: Color? { privacy.isCameraInUse ? .green : .orange }
+    var tabSymbol: String { privacy.isCameraInUse ? "video.fill" : "mic.fill" }
 
     var expanded: AnyView {
         AnyView(

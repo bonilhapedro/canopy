@@ -14,10 +14,14 @@ final class MusicController {
     private(set) var isShuffling = false
     /// Volume do próprio player, de 0 a 100, independente do volume do Mac.
     private(set) var playerVolume: Int?
+    private(set) var repeatMode = RepeatMode.off
+    /// Se a faixa está nos favoritos. Só o Apple Music deixa ler isso; no Spotify fica nil.
+    private(set) var isFavorite: Bool?
 
     @ObservationIgnored var onChange: (() -> Void)?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var artworkKey: String?
+    @ObservationIgnored private var icons: [NowPlaying.Player: NSImage] = [:]
 
     func start() {
         for player in NowPlaying.Player.allCases {
@@ -45,6 +49,47 @@ final class MusicController {
         guard let player = nowPlaying?.player else { return }
         send("set \(player.shuffleProperty) to \(!isShuffling)")
         refreshPlayerSettings()
+    }
+
+    func cycleRepeat() {
+        guard let player = nowPlaying?.player else { return }
+        let next = repeatMode.next(supportsOne: player == .appleMusic)
+        switch player {
+        case .appleMusic: send("set song repeat to \(next.rawValue)")
+        case .spotify: send("set repeating to \(next != .off)")
+        }
+        repeatMode = next
+    }
+
+    func toggleFavorite() {
+        guard let isFavorite, let player = nowPlaying?.player, player == .appleMusic, isRunning(player) else { return }
+        let value = !isFavorite
+        // "loved" virou "favorited" no Apple Music mais novo; tenta os dois.
+        AppleScriptRunner.run("""
+        tell application "Music"
+            try
+                set favorited of current track to \(value)
+            on error
+                set loved of current track to \(value)
+            end try
+        end tell
+        """)
+        self.isFavorite = value
+    }
+
+    /// Traz o player para a frente.
+    func activatePlayer() {
+        guard let player = nowPlaying?.player else { return }
+        NSRunningApplication.runningApplications(withBundleIdentifier: player.bundleIdentifier).first?.activate()
+    }
+
+    /// Ícone do app do player, para o selinho na capa.
+    func icon(for player: NowPlaying.Player) -> NSImage? {
+        if let cached = icons[player] { return cached }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: player.bundleIdentifier) else { return nil }
+        let image = NSWorkspace.shared.icon(forFile: url.path)
+        icons[player] = image
+        return image
     }
 
     func setPlayerVolume(_ volume: Int) {
@@ -142,17 +187,43 @@ final class MusicController {
         }
     }
 
-    /// Lê o modo aleatório e o volume do player, que podem ser mudados no próprio app.
+    /// Lê o modo aleatório, a repetição, o volume e o favorito, que podem ser mudados no próprio app.
     private func refreshPlayerSettings() {
-        guard let player = nowPlaying?.player, isRunning(player),
-              let result = AppleScriptRunner.run(
-                  "tell application \"\(player.scriptName)\" to return {\(player.shuffleProperty), sound volume}"
-              ),
-              result.numberOfItems == 2
-        else { return }
+        guard let player = nowPlaying?.player, isRunning(player) else { return }
+        let script = switch player {
+        case .appleMusic:
+            """
+            tell application "Music"
+                set fav to missing value
+                try
+                    set fav to favorited of current track
+                on error
+                    try
+                        set fav to loved of current track
+                    end try
+                end try
+                return {shuffle enabled, sound volume, song repeat as string, fav}
+            end tell
+            """
+        case .spotify:
+            "tell application \"Spotify\" to return {shuffling, sound volume, repeating}"
+        }
+        guard let result = AppleScriptRunner.run(script), result.numberOfItems >= 3 else { return }
         isShuffling = result.atIndex(1)?.booleanValue ?? false
         playerVolume = result.atIndex(2).map { Int($0.int32Value) }
+        switch player {
+        case .appleMusic:
+            repeatMode = result.atIndex(3)?.stringValue.flatMap(RepeatMode.init(rawValue:)) ?? .off
+            // 'msng' é o "missing value" do AppleScript: a faixa não deixa favoritar.
+            let favorite = result.atIndex(4)
+            isFavorite = favorite.flatMap { $0.descriptorType == Self.missingValue ? nil : $0.booleanValue }
+        case .spotify:
+            repeatMode = result.atIndex(3)?.booleanValue == true ? .all : .off
+            isFavorite = nil
+        }
     }
+
+    private static let missingValue: DescType = 0x6D73_6E67
 
     private func setArtwork(_ image: NSImage?) {
         artwork = image

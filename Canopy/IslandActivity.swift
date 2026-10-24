@@ -18,10 +18,13 @@ protocol IslandActivity: AnyObject {
     var accent: Color? { get }
     /// Fundo atrás do conteúdo da ilha aberta, como a capa da música desfocada.
     var backdrop: AnyView? { get }
+    /// SF Symbol da aba "Agora" quando esta atividade está na frente.
+    var tabSymbol: String { get }
 }
 
 @MainActor
 extension IslandActivity {
     var accent: Color? { nil }
     var backdrop: AnyView? { nil }
+    var tabSymbol: String { "sparkles" }
 }

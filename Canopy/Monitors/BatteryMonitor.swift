@@ -30,6 +30,21 @@ final class BatteryMonitor {
         }
     }
 
+    /// Minutos até a carga completa, se o macOS já tiver a estimativa.
+    static func minutesToFull() -> Int? {
+        guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+              let sources = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef]
+        else { return nil }
+        for source in sources {
+            guard let description = IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any],
+                  description[kIOPSTypeKey] as? String == kIOPSInternalBatteryType,
+                  let minutes = description[kIOPSTimeToFullChargeKey] as? Int, minutes > 0
+            else { continue }
+            return minutes
+        }
+        return nil
+    }
+
     /// Lê a bateria interna. Devolve nil em Macs sem bateria.
     static func read() -> BatterySnapshot? {
         guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),

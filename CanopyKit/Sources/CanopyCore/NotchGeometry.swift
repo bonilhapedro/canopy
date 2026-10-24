@@ -60,6 +60,8 @@ public struct IslandLayout: Sendable, Equatable {
     public var notch: CGSize
     /// Sem notch, a ilha fechada vira uma pílula menor que a área usada pelos outros estados.
     public var hasNotch: Bool
+    /// Ajuste fino da ilha fechada, feito pelo usuário nos Ajustes, em pontos.
+    public var closedAdjustment: CGSize
 
     /// Quanto a ilha compacta cresce para cada lado do notch.
     public static let compactWing: CGFloat = 76
@@ -71,24 +73,32 @@ public struct IslandLayout: Sendable, Equatable {
     /// Quanto a pílula fechada é menor, em largura e altura, em telas sem notch.
     public static let closedPillInset = CGSize(width: 56, height: 6)
 
-    public init(notch: CGSize, hasNotch: Bool = true) {
+    /// Menor tamanho da ilha fechada, mesmo com o ajuste fino.
+    public static let closedMinimum = CGSize(width: 40, height: 10)
+
+    public init(notch: CGSize, hasNotch: Bool = true, closedAdjustment: CGSize = .zero) {
         self.notch = notch
         self.hasNotch = hasNotch
+        self.closedAdjustment = closedAdjustment
     }
 
     public func size(for phase: IslandPhase) -> CGSize {
         switch phase {
         case .closed:
-            hasNotch
+            let base = hasNotch
                 ? notch
                 : CGSize(
                     width: notch.width - Self.closedPillInset.width,
                     height: max(notch.height - Self.closedPillInset.height, 14)
                 )
+            return CGSize(
+                width: max(base.width + closedAdjustment.width, Self.closedMinimum.width),
+                height: max(base.height + closedAdjustment.height, Self.closedMinimum.height)
+            )
         case .compact:
-            CGSize(width: notch.width + 2 * Self.compactWing, height: notch.height)
+            return CGSize(width: notch.width + 2 * Self.compactWing, height: notch.height)
         case .expanded:
-            CGSize(
+            return CGSize(
                 width: max(notch.width + 2 * Self.compactWing, Self.expandedMinWidth),
                 height: notch.height + Self.expandedContentHeight
             )
