@@ -108,11 +108,13 @@ private struct GeneralSettings: View {
                         .foregroundStyle(.red)
                 }
             }
-            Section("Comportamento") {
+            Section {
                 Toggle("Abrir a ilha ao passar o mouse", isOn: $expandOnHover)
                 Toggle("Vibração no trackpad", isOn: $haptics)
                 Toggle("Esconder com app em tela cheia", isOn: $hideInFullscreen)
                 Toggle("Esconder de gravações e capturas de tela", isOn: $hideFromCapture)
+            } header: {
+                Text("Comportamento")
             } footer: {
                 Text("Com o mouse desligado, a ilha abre com um clique. Com a ilha aberta, arraste dois dedos para os lados no trackpad para trocar de página.")
             }
