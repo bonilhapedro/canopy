@@ -456,7 +456,7 @@ private struct TimerSettings: View {
             Section {
                 Toggle("Tocar som quando o timer terminar", isOn: $timerSound)
             } footer: {
-                Text("Comece um timer pela página do timer na ilha aberta ou pelo menu do Canopy na barra de menus.")
+                Text("Comece um timer pelo menu do Canopy na barra de menus. Enquanto ele corre, a contagem fica ao lado do notch.")
             }
         }
         .formStyle(.grouped)

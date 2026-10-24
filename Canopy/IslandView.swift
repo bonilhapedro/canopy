@@ -4,7 +4,6 @@ import SwiftUI
 
 struct IslandView: View {
     @Environment(IslandCoordinator.self) private var coordinator
-    @Environment(TimerController.self) private var timer
     @AppStorage(SettingsKey.glassIsland) private var glassIsland = true
     @AppStorage(SettingsKey.glassDarkness) private var glassDarkness = 0.25
     /// Onde o mouse está sobre a ilha, para o reflexo na borda de vidro.
@@ -198,51 +197,60 @@ struct IslandView: View {
             TrayPage()
         case .weather:
             WeatherPage()
-        case .timer:
-            TimerPage(timer: timer)
         }
     }
 }
 
-/// Faixa do topo da ilha aberta, dos dois lados do notch: abas à esquerda, bateria à direita.
+/// Faixa do topo da ilha aberta, dos dois lados do notch. As abas se dividem entre os lados,
+/// para o notch não cobrir nenhuma; a bateria fecha o lado direito.
 private struct IslandHeader: View {
     @Environment(IslandCoordinator.self) private var coordinator
     @Namespace private var tabs
 
     var body: some View {
+        let pages = coordinator.pages
+        // Com número ímpar, o lado esquerdo fica com uma a mais.
+        let split = (pages.count + 1) / 2
         HStack(spacing: 0) {
-            HStack(spacing: 2) {
-                ForEach(coordinator.pages, id: \.self) { page in
-                    let isSelected = page == coordinator.currentPage
-                    Button {
-                        coordinator.select(page)
-                    } label: {
-                        Image(systemName: symbol(for: page))
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.4))
-                            .frame(width: 28, height: 20)
-                            .background {
-                                if isSelected {
-                                    Capsule()
-                                        .fill(Color.white.opacity(0.16))
-                                        .matchedGeometryEffect(id: "selected", in: tabs)
-                                }
-                            }
-                            .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .transition(.scale.combined(with: .opacity))
-                }
-            }
-            .animation(.snappy(duration: 0.3), value: coordinator.currentPage)
-            .animation(.snappy(duration: 0.3), value: coordinator.pages)
+            tabRow(Array(pages.prefix(split)))
 
             Spacer(minLength: coordinator.layout.notch.width + 16)
 
-            HeaderBattery()
+            HStack(spacing: 10) {
+                tabRow(Array(pages.dropFirst(split)))
+                HeaderBattery()
+            }
         }
+        .animation(.snappy(duration: 0.3), value: coordinator.currentPage)
+        .animation(.snappy(duration: 0.3), value: pages)
         .padding(.horizontal, 20)
         .entrance(0)
+    }
+
+    private func tabRow(_ pages: [IslandPage]) -> some View {
+        HStack(spacing: 2) {
+            ForEach(pages, id: \.self) { page in
+                let isSelected = page == coordinator.currentPage
+                Button {
+                    coordinator.select(page)
+                } label: {
+                    Image(systemName: symbol(for: page))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.4))
+                        .frame(width: 28, height: 20)
+                        .background {
+                            if isSelected {
+                                Capsule()
+                                    .fill(Color.white.opacity(0.16))
+                                    .matchedGeometryEffect(id: "selected", in: tabs)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
     }
 
     private func symbol(for page: IslandPage) -> String {
@@ -251,7 +259,6 @@ private struct IslandHeader: View {
         case .home: "calendar"
         case .tray: "tray.full.fill"
         case .weather: "cloud.sun.fill"
-        case .timer: "timer"
         }
     }
 }

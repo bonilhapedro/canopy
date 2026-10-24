@@ -14,13 +14,12 @@ Para testar o estado compacto, ligue **Atividade de teste** no menu da barra.
 
 ## O que a ilha mostra
 
-A ilha aberta tem páginas. As abas ficam no topo, à esquerda do notch. Para trocar, clique numa aba ou arraste dois dedos para os lados no trackpad.
+A ilha aberta tem páginas. As abas ficam no topo, divididas dos dois lados do notch. Para trocar, clique numa aba ou arraste dois dedos para os lados no trackpad.
 
 - **Agora**: a atividade da frente, como a música ou um timer correndo.
 - **Início**: saudação, hora, data e os próximos eventos da agenda.
 - **Bandeja**: arquivos guardados no notch (veja abaixo).
 - **Clima**: temperatura, condição e as próximas horas, com dados do Open-Meteo.
-- **Timer**: atalhos de 1 min a 1 h. A contagem fica ao lado do notch e um alarme toca no fim.
 
 ### Bandeja de arquivos
 
@@ -33,6 +32,7 @@ Por padrão a bandeja guarda só onde o arquivo está. Com **Guardar uma cópia*
 Atividades que aparecem ao lado do notch:
 
 - **Música** do Apple Music e do Spotify: capa, faixa, progresso, aleatório, repetir, volume do player e favoritar (só no Apple Music). Clique na capa para abrir o player. Na primeira vez, o macOS pede permissão de Automação para cada player.
+- **Timer**: iniciado pelo menu da barra, com a contagem ao lado do notch e um alarme no fim.
 - **Reunião**: cinco minutos antes de um evento, com botão Entrar para links do Zoom, Meet, Teams e FaceTime.
 - **Bateria**: carregador ligado (com o nível líquido e o tempo até completar), desligado e bateria fraca.
 - **Saída de áudio**: AirPods, fones, monitor ou AirPlay quando viram a saída do Mac.
