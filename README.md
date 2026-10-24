@@ -18,8 +18,17 @@ A ilha aberta tem páginas. As abas ficam no topo, à esquerda do notch. Para tr
 
 - **Agora**: a atividade da frente, como a música ou um timer correndo.
 - **Início**: saudação, hora, data e os próximos eventos da agenda.
+- **Bandeja**: arquivos guardados no notch (veja abaixo).
 - **Clima**: temperatura, condição e as próximas horas, com dados do Open-Meteo.
 - **Timer**: atalhos de 1 min a 1 h. A contagem fica ao lado do notch e um alarme toca no fim.
+
+### Bandeja de arquivos
+
+Arraste um arquivo (ou vários) até o notch: a ilha abre na bandeja com duas áreas. Solte à esquerda para guardar, ou à direita para mandar direto por AirDrop. Funciona com arquivos do Finder e com o que outros apps entregam ao arrastar, como fotos do Fotos e anexos do Mail.
+
+Na bandeja, arraste um arquivo para fora para soltá-lo em outro app (ele sai como cópia; o original não muda de lugar), ou use a pilha ao lado para levar todos de uma vez. Clique duas vezes para abrir; com o botão direito há Mostrar no Finder, AirDrop e Tirar da bandeja.
+
+Por padrão a bandeja guarda só onde o arquivo está. Com **Guardar uma cópia** (em Ajustes › Bandeja de arquivos), ela copia para `~/Library/Application Support/Canopy/Tray`, e a cópia é apagada quando sai da bandeja.
 
 Atividades que aparecem ao lado do notch:
 

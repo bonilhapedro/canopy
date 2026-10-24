@@ -26,11 +26,7 @@ struct SettingsView: View {
                 case .general: GeneralSettings()
                 case .appearance: AppearanceSettings()
                 case .media: MediaSettings()
-                case .fileTray:
-                    ComingSoon(
-                        section: .fileTray,
-                        text: "Arraste arquivos até o notch para guardá-los na ilha e soltá-los depois em outro app ou no AirDrop."
-                    )
+                case .fileTray: TraySettings()
                 case .battery: BatterySettings()
                 case .audio: AudioSettings()
                 case .calendar: CalendarSettings()
@@ -496,25 +492,36 @@ private struct TouchIDSettings: View {
     }
 }
 
-/// Página de um recurso que ainda vai ser feito.
-private struct ComingSoon: View {
-    let section: SettingsSection
-    let text: String
+// MARK: - Bandeja de arquivos
+
+private struct TraySettings: View {
+    @Environment(FileTray.self) private var tray
+    @AppStorage(SettingsKey.trayEnabled) private var enabled = true
+    @AppStorage(SettingsKey.trayCopiesFiles) private var copiesFiles = false
+    @AppStorage(SettingsKey.trayRemovesAfterDrag) private var removesAfterDrag = true
 
     var body: some View {
-        VStack(spacing: 14) {
-            Image(systemName: section.symbol)
-                .font(.system(size: 44, weight: .light))
-                .foregroundStyle(.secondary)
-                .frame(width: 96, height: 96)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            Text("Em breve")
-                .font(.title2.weight(.semibold))
-            Text(text)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: 360)
+        Form {
+            Section {
+                Toggle("Bandeja de arquivos", isOn: $enabled)
+            } footer: {
+                Text("Arraste arquivos até o notch e a ilha abre na bandeja. Solte à esquerda para guardar, ou à direita para mandar direto por AirDrop. Para tirar da bandeja, arraste o arquivo para outro app; clique duas vezes para abrir, ou use o botão direito.")
+            }
+            Section {
+                Toggle("Guardar uma cópia dos arquivos", isOn: $copiesFiles)
+                Toggle("Tirar da bandeja depois de arrastar para fora", isOn: $removesAfterDrag)
+            } footer: {
+                Text("Sem a cópia, a bandeja guarda só onde o arquivo está: se ele for apagado, sai da bandeja também. Com a cópia, o original pode ir embora; as cópias ficam na pasta do Canopy e são apagadas quando saem da bandeja.")
+            }
+            .disabled(!enabled)
+            Section {
+                LabeledContent("Na bandeja") {
+                    Text(tray.items.count == 1 ? "1 arquivo" : "\(tray.items.count) arquivos")
+                }
+                Button("Esvaziar bandeja", role: .destructive, action: tray.removeAll)
+                    .disabled(tray.items.isEmpty)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .formStyle(.grouped)
     }
 }

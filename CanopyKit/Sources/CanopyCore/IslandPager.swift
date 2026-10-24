@@ -4,14 +4,17 @@ public enum IslandPage: String, CaseIterable, Sendable, Equatable {
     case now
     /// Hora, data, agenda e bateria.
     case home
+    /// Os arquivos guardados na bandeja.
+    case tray
     case weather
     case timer
 
     /// As páginas disponíveis agora, na ordem em que aparecem.
-    public static func available(hasActivity: Bool, showsWeather: Bool) -> [IslandPage] {
+    public static func available(hasActivity: Bool, showsWeather: Bool, showsTray: Bool = false) -> [IslandPage] {
         allCases.filter { page in
             switch page {
             case .now: hasActivity
+            case .tray: showsTray
             case .weather: showsWeather
             case .home, .timer: true
             }

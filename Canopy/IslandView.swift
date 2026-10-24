@@ -194,6 +194,8 @@ struct IslandView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         case .home:
             HomePage()
+        case .tray:
+            TrayPage()
         case .weather:
             WeatherPage()
         case .timer:
@@ -247,6 +249,7 @@ private struct IslandHeader: View {
         switch page {
         case .now: coordinator.primary?.tabSymbol ?? "sparkles"
         case .home: "calendar"
+        case .tray: "tray.full.fill"
         case .weather: "cloud.sun.fill"
         case .timer: "timer"
         }

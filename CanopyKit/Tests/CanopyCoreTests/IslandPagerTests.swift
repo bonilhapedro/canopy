@@ -8,6 +8,10 @@ struct IslandPagerTests {
         #expect(IslandPage.available(hasActivity: true, showsWeather: false) == [.now, .home, .timer])
     }
 
+    @Test func trayComesRightAfterHome() {
+        #expect(IslandPage.available(hasActivity: true, showsWeather: true, showsTray: true) == [.now, .home, .tray, .weather, .timer])
+    }
+
     @Test func neighborDoesNotWrapAround() {
         let pages: [IslandPage] = [.now, .home, .timer]
         #expect(IslandPage.now.neighbor(1, in: pages) == .home)

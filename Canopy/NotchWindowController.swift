@@ -9,6 +9,7 @@ struct IslandServices {
     let weather: WeatherService
     let timer: TimerController
     let battery: BatteryMonitor
+    let tray: FileTray
 }
 
 @MainActor
@@ -30,13 +31,17 @@ final class NotchWindowController {
             .environment(services.weather)
             .environment(services.timer)
             .environment(services.battery)
+            .environment(services.tray)
         let host = FirstMouseHostingView(rootView: root)
         // A janela tem tamanho fixo; o SwiftUI não deve redimensioná-la.
         host.sizingOptions = []
         host.onScroll = { [weak coordinator] event in
             coordinator?.scroll(event)
         }
-        panel.contentView = host
+        let container = DropContainerView(content: host)
+        container.dropTarget = TrayDropTarget(coordinator: coordinator, tray: services.tray)
+        container.registerForDraggedTypes(TrayDropTarget.types)
+        panel.contentView = container
     }
 
     /// A tela onde a ilha está.
@@ -120,5 +125,43 @@ private final class FirstMouseHostingView<Content: View>: NSHostingView<Content>
     override func scrollWheel(with event: NSEvent) {
         onScroll?(event)
         super.scrollWheel(with: event)
+    }
+}
+
+/// Por baixo da ilha: recebe arquivos arrastados até o notch, mesmo com o Canopy em segundo plano.
+/// Fica em volta do NSHostingView para não depender de como o SwiftUI trata arrastes.
+private final class DropContainerView: NSView {
+    var dropTarget: TrayDropTarget?
+
+    init(content: NSView) {
+        super.init(frame: .zero)
+        content.frame = bounds
+        content.autoresizingMask = [.width, .height]
+        addSubview(content)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        dropTarget?.update(sender, in: self) ?? []
+    }
+
+    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        dropTarget?.update(sender, in: self) ?? []
+    }
+
+    override func draggingExited(_ sender: (any NSDraggingInfo)?) {
+        dropTarget?.leave()
+    }
+
+    override func draggingEnded(_ sender: any NSDraggingInfo) {
+        dropTarget?.leave()
+    }
+
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        dropTarget?.perform(sender) ?? false
     }
 }

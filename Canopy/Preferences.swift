@@ -25,6 +25,9 @@ enum SettingsKey {
     static let calendarEnabled = "calendarEnabled"
     static let meetingAlerts = "meetingAlerts"
     static let timerSound = "timerSound"
+    static let trayEnabled = "trayEnabled"
+    static let trayCopiesFiles = "trayCopiesFiles"
+    static let trayRemovesAfterDrag = "trayRemovesAfterDrag"
 }
 
 /// Valores padrão dos Ajustes e atalhos para ler cada um fora das views.
@@ -53,6 +56,9 @@ enum Preferences {
         SettingsKey.calendarEnabled: true,
         SettingsKey.meetingAlerts: true,
         SettingsKey.timerSound: true,
+        SettingsKey.trayEnabled: true,
+        SettingsKey.trayCopiesFiles: false,
+        SettingsKey.trayRemovesAfterDrag: true,
     ]
 
     /// Precisa rodar antes de qualquer leitura, para os padrões valerem também no @AppStorage.
@@ -91,4 +97,7 @@ enum Preferences {
     static var calendarEnabled: Bool { bool(SettingsKey.calendarEnabled) }
     static var meetingAlerts: Bool { bool(SettingsKey.meetingAlerts) }
     static var timerSound: Bool { bool(SettingsKey.timerSound) }
+    static var trayEnabled: Bool { bool(SettingsKey.trayEnabled) }
+    static var trayCopiesFiles: Bool { bool(SettingsKey.trayCopiesFiles) }
+    static var trayRemovesAfterDrag: Bool { bool(SettingsKey.trayRemovesAfterDrag) }
 }
