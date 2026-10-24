@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>O Canopy mostra na ilha os seus AirPods quando eles conectam, com a bateria dos fones e do estojo.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>O Canopy mostra seus próximos eventos na ilha e avisa alguns minutos antes de cada reunião.</string>
 	<key>NSCalendarsUsageDescription</key>

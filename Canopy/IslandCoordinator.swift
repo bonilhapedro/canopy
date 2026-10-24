@@ -81,7 +81,9 @@ final class IslandCoordinator {
 
     /// Mostra uma atividade por um tempo curto, como o HUD de volume.
     /// Repetir antes do fim troca o conteúdo e reinicia o prazo, sem reordenar a fila.
-    func flash(_ activity: any IslandActivity, for duration: Duration) {
+    /// - Parameter expands: abre a ilha sozinha enquanto a atividade aparece, como os AirPods
+    ///   conectando no iPhone, e fecha ao fim, a não ser que o mouse esteja nela ou alguém tenha clicado.
+    func flash(_ activity: any IslandActivity, for duration: Duration, expands: Bool = false) {
         let id = activity.id
         flashTasks[id]?.cancel()
         if queue.contains(id: id) {
@@ -89,11 +91,13 @@ final class IslandCoordinator {
         } else {
             start(activity)
         }
+        if expands { handle(.presentationStarted) }
         flashTasks[id] = Task { [weak self] in
             try? await Task.sleep(for: duration)
             guard !Task.isCancelled else { return }
             self?.flashTasks[id] = nil
             self?.end(id: id)
+            if expands { self?.handle(.presentationEnded) }
         }
     }
 

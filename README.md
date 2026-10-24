@@ -37,6 +37,7 @@ Atividades que aparecem ao lado do notch:
 - **Timer**: iniciado pelo menu da barra, com a contagem ao lado do notch e um alarme no fim.
 - **Reunião**: cinco minutos antes de um evento, com botão Entrar para links do Zoom, Meet, Teams e FaceTime.
 - **Bateria**: carregador ligado (com o nível líquido e o tempo até completar), desligado e bateria fraca.
+- **AirPods**: ao conectar AirPods ou Beats, a ilha abre com o fone girando e anéis com a bateria dos fones e do estojo, como no iPhone (Ajustes > Acessórios).
 - **Saída de áudio**: AirPods, fones, monitor ou AirPlay quando viram a saída do Mac.
 - **Desbloqueio**: o cadeado abre na ilha logo depois de desbloquear o Mac com o Touch ID.
 - **Microfone e câmera**: enquanto algum app usa um deles.

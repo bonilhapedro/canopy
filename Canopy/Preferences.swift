@@ -15,6 +15,8 @@ enum SettingsKey {
     static let unlockSound = "unlockSound"
     static let batteryAlerts = "batteryAlerts"
     static let outputAlerts = "outputAlerts"
+    static let airPodsAlerts = "airPodsAlerts"
+    static let airPodsExpand = "airPodsExpand"
     static let volumeHUD = "volumeHUD"
     static let brightnessHUD = "brightnessHUD"
     static let replaceSystemHUD = "replaceSystemHUD"
@@ -47,6 +49,8 @@ enum Preferences {
         SettingsKey.unlockSound: false,
         SettingsKey.batteryAlerts: true,
         SettingsKey.outputAlerts: true,
+        SettingsKey.airPodsAlerts: true,
+        SettingsKey.airPodsExpand: true,
         SettingsKey.volumeHUD: true,
         SettingsKey.brightnessHUD: true,
         SettingsKey.replaceSystemHUD: true,
@@ -89,6 +93,8 @@ enum Preferences {
     static var unlockSound: Bool { bool(SettingsKey.unlockSound) }
     static var batteryAlerts: Bool { bool(SettingsKey.batteryAlerts) }
     static var outputAlerts: Bool { bool(SettingsKey.outputAlerts) }
+    static var airPodsAlerts: Bool { bool(SettingsKey.airPodsAlerts) }
+    static var airPodsExpand: Bool { bool(SettingsKey.airPodsExpand) }
     static var volumeHUD: Bool { bool(SettingsKey.volumeHUD) }
     static var brightnessHUD: Bool { bool(SettingsKey.brightnessHUD) }
     static var replaceSystemHUD: Bool { bool(SettingsKey.replaceSystemHUD) }
