@@ -1,3 +1,4 @@
+import CanopyCore
 import CoreGraphics
 import Foundation
 
@@ -31,6 +32,11 @@ enum SettingsKey {
     static let trayCopiesFiles = "trayCopiesFiles"
     static let trayRemovesAfterDrag = "trayRemovesAfterDrag"
     static let trayScreenshots = "trayScreenshots"
+    static let messagesEnabled = "messagesEnabled"
+    static let messagesWhatsApp = "messagesWhatsApp"
+    static let messagesSlack = "messagesSlack"
+    static let messagesShowBody = "messagesShowBody"
+    static let messagesExpand = "messagesExpand"
 }
 
 /// Valores padrão dos Ajustes e atalhos para ler cada um fora das views.
@@ -65,6 +71,11 @@ enum Preferences {
         SettingsKey.trayCopiesFiles: false,
         SettingsKey.trayRemovesAfterDrag: true,
         SettingsKey.trayScreenshots: true,
+        SettingsKey.messagesEnabled: true,
+        SettingsKey.messagesWhatsApp: true,
+        SettingsKey.messagesSlack: true,
+        SettingsKey.messagesShowBody: true,
+        SettingsKey.messagesExpand: true,
     ]
 
     /// Precisa rodar antes de qualquer leitura, para os padrões valerem também no @AppStorage.
@@ -109,4 +120,14 @@ enum Preferences {
     static var trayCopiesFiles: Bool { bool(SettingsKey.trayCopiesFiles) }
     static var trayRemovesAfterDrag: Bool { bool(SettingsKey.trayRemovesAfterDrag) }
     static var trayScreenshots: Bool { bool(SettingsKey.trayScreenshots) }
+    static var messagesEnabled: Bool { bool(SettingsKey.messagesEnabled) }
+    static var messagesShowBody: Bool { bool(SettingsKey.messagesShowBody) }
+    static var messagesExpand: Bool { bool(SettingsKey.messagesExpand) }
+    /// Os apps de mensagem ligados nos Ajustes.
+    static var messagingApps: Set<MessagingApp> {
+        var apps: Set<MessagingApp> = []
+        if bool(SettingsKey.messagesWhatsApp) { apps.insert(.whatsApp) }
+        if bool(SettingsKey.messagesSlack) { apps.insert(.slack) }
+        return apps
+    }
 }

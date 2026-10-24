@@ -1,3 +1,4 @@
+import CanopyCore
 import ServiceManagement
 import SwiftUI
 
@@ -30,6 +31,7 @@ struct SettingsView: View {
                 case .battery: BatterySettings()
                 case .audio: AudioSettings()
                 case .accessories: AccessorySettings()
+                case .messages: MessageSettings()
                 case .calendar: CalendarSettings()
                 case .weather: WeatherSettings()
                 case .timer: TimerSettings()
@@ -44,10 +46,10 @@ struct SettingsView: View {
 
 enum SettingsSection: String, Identifiable, Hashable {
     case general, appearance, media, fileTray
-    case battery, audio, accessories, calendar, weather, timer, touchID
+    case battery, audio, accessories, messages, calendar, weather, timer, touchID
 
     static let main: [SettingsSection] = [.general, .appearance, .media, .fileTray]
-    static let overlays: [SettingsSection] = [.battery, .audio, .accessories, .calendar, .weather, .timer, .touchID]
+    static let overlays: [SettingsSection] = [.battery, .audio, .accessories, .messages, .calendar, .weather, .timer, .touchID]
 
     var id: String { rawValue }
 
@@ -60,6 +62,7 @@ enum SettingsSection: String, Identifiable, Hashable {
         case .battery: "Bateria"
         case .audio: "Volume e brilho"
         case .accessories: "Acessórios"
+        case .messages: "Mensagens"
         case .calendar: "Agenda"
         case .weather: "Clima"
         case .timer: "Timer"
@@ -76,6 +79,7 @@ enum SettingsSection: String, Identifiable, Hashable {
         case .battery: "battery.75percent"
         case .audio: "sun.max"
         case .accessories: "airpods"
+        case .messages: "message"
         case .calendar: "calendar"
         case .weather: "cloud.sun"
         case .timer: "timer"
@@ -336,6 +340,71 @@ private struct AccessorySettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+private struct MessageSettings: View {
+    @Environment(MessageMonitor.self) private var messages
+    @AppStorage(SettingsKey.messagesEnabled) private var enabled = true
+    @AppStorage(SettingsKey.messagesWhatsApp) private var whatsApp = true
+    @AppStorage(SettingsKey.messagesSlack) private var slack = true
+    @AppStorage(SettingsKey.messagesShowBody) private var showsBody = true
+    @AppStorage(SettingsKey.messagesExpand) private var expands = true
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Mostrar mensagens na ilha", isOn: $enabled)
+                Toggle("WhatsApp", isOn: $whatsApp)
+                    .disabled(!enabled)
+                Toggle("Slack", isOn: $slack)
+                    .disabled(!enabled)
+                Toggle("Mostrar o texto da mensagem", isOn: $showsBody)
+                    .disabled(!enabled)
+                Toggle("Abrir a ilha com a mensagem", isOn: $expands)
+                    .disabled(!enabled)
+            } footer: {
+                Text("Fechada, a ilha mostra o ícone do app e quem mandou. Aberta, mostra a mensagem e o botão Abrir. Os outros apps continuam só nas notificações do macOS.")
+            }
+            if enabled {
+                Section {
+                    LabeledContent("Acesso Total ao Disco") {
+                        switch messages.access {
+                        case .granted:
+                            Text("Permitido").foregroundStyle(.green)
+                        case .needsFullDiskAccess, .unknown:
+                            Button("Abrir Ajustes do Sistema", action: MessageMonitor.openFullDiskAccessSettings)
+                        case .unsupported:
+                            Text("Indisponível nesta versão do macOS").foregroundStyle(.orange)
+                        }
+                    }
+                } header: {
+                    Text("Acesso")
+                } footer: {
+                    Text("O macOS não entrega as notificações de um app para outro. O Canopy lê as do WhatsApp e do Slack no registro da Central de Notificações, e para isso precisa estar ligado em Privacidade e Segurança › Acesso Total ao Disco. Nada sai do seu Mac. Depois de um build novo, se parar de funcionar, tire o Canopy da lista com o botão − e adicione de novo.")
+                }
+                Section {
+                    ForEach(MessagingApp.allCases, id: \.self) { app in
+                        LabeledContent(app.displayName) {
+                            Button("Ajustes de notificação") { MessageMonitor.openNotificationSettings(for: app) }
+                        }
+                    }
+                } header: {
+                    Text("Só na ilha, sem o banner do macOS")
+                } footer: {
+                    Text("Nos ajustes de notificação de cada app, escolha o estilo de alerta Nenhum e deixe ligado Mostrar na Central de Notificações. O macOS para de mostrar o banner, mas continua guardando a mensagem, e o Canopy mostra na ilha. Desligue também Reproduzir som se não quiser o som.")
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .task(id: enabled) {
+            // Com esta tela aberta e ainda sem o acesso, tenta de novo a cada segundo,
+            // para o "Permitido" aparecer assim que o Canopy for ligado na lista.
+            while enabled, messages.access != .granted, messages.access != .unsupported, !Task.isCancelled {
+                messages.retry()
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
     }
 }
 

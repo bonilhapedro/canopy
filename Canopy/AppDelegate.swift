@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     let battery = BatteryMonitor()
     let tray = FileTray()
+    let messages = MessageMonitor()
 
     private let music = MusicController()
     private let privacy = PrivacyMonitor()
@@ -29,6 +30,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var defaultsObserver: NSObjectProtocol?
     private var clickMonitor: Any?
     private var musicPauseTask: Task<Void, Never>?
+    /// Mensagens seguidas da mesma conversa enquanto a ilha mostra a última, para o contador.
+    private var messageBurst: (key: String, count: Int)?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let controller = NotchWindowController(
@@ -84,6 +87,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         screenshots.setEnabled(Preferences.trayEnabled && Preferences.trayScreenshots)
         // Desligado, o Canopy nem pede o Bluetooth.
         airPods.setEnabled(Preferences.airPodsAlerts)
+        // Sem nenhum app de mensagem ligado, o banco da Central de Notificações nem é aberto.
+        messages.configure(enabled: Preferences.messagesEnabled, apps: Preferences.messagingApps)
     }
 
     /// O que só precisa existir com a ilha aberta.
@@ -147,6 +152,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         }
 
+        messages.onMessage = { [weak self] note, count in self?.showMessage(note, count: count) }
+
         lock.onUnlock = { [weak self] in
             guard Preferences.unlockAnimation else { return }
             self?.coordinator.flash(UnlockActivity(), for: .seconds(1.8))
@@ -173,6 +180,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         fullscreen.onChange = { [weak self] isFullscreen in
             self?.windowController?.setHidden(isFullscreen)
         }
+    }
+
+    private func showMessage(_ note: AppNotification, count: Int) {
+        let key = "\(note.app.rawValue)/\(note.title)"
+        if let burst = messageBurst, burst.key == key, coordinator.isActive(id: MessageActivity.activityID) {
+            messageBurst = (key, burst.count + count)
+        } else {
+            messageBurst = (key, count)
+        }
+        let activity = MessageActivity(
+            note: note,
+            count: messageBurst?.count ?? count,
+            icon: messages.icon(for: note.bundleID),
+            showsBody: Preferences.messagesShowBody
+        ) { [weak self] in
+            guard let self else { return }
+            messages.open(note)
+            coordinator.end(id: MessageActivity.activityID)
+            coordinator.dismiss()
+        }
+        coordinator.flash(activity, for: .seconds(6), expands: Preferences.messagesExpand)
     }
 
     private func showVolume() {
@@ -300,6 +328,15 @@ extension AppDelegate {
             coordinator.click()
         case "airpods":
             coordinator.start(AirPodsActivity(monitor: airPods, status: airPods.simulateConnection()))
+            coordinator.click()
+        case "message":
+            coordinator.start(MessageActivity(
+                note: MessageMonitor.simulatedMessage(),
+                count: 2,
+                icon: nil,
+                showsBody: true,
+                onOpen: {}
+            ))
             coordinator.click()
         case "tray":
             tray.simulateItems()

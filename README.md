@@ -38,6 +38,7 @@ Atividades que aparecem ao lado do notch:
 - **Reunião**: cinco minutos antes de um evento, com botão Entrar para links do Zoom, Meet, Teams e FaceTime.
 - **Bateria**: carregador ligado (com o nível líquido e o tempo até completar), desligado e bateria fraca.
 - **AirPods**: ao conectar AirPods ou Beats, a ilha abre com o fone girando e anéis com a bateria dos fones e do estojo, como no iPhone (Ajustes > Acessórios).
+- **Mensagens**: WhatsApp e Slack aparecem na ilha com o ícone do app, quem mandou e a mensagem. Com o estilo de alerta desses apps em Nenhum, o banner do macOS some e a mensagem aparece só na ilha (Ajustes > Mensagens).
 - **Saída de áudio**: AirPods, fones, monitor ou AirPlay quando viram a saída do Mac.
 - **Desbloqueio**: o cadeado abre na ilha logo depois de desbloquear o Mac com o Touch ID.
 - **Microfone e câmera**: enquanto algum app usa um deles.
@@ -50,9 +51,9 @@ Tudo isso liga e desliga em **Ajustes**, que também controla o Liquid Glass (cl
 
 ### Permissões
 
-O macOS pede cada uma na primeira vez que ela é usada: Automação (Apple Music e Spotify), Agenda (ao tocar em Conectar agenda), Localização (só com a localização precisa ligada) e Acessibilidade (para esconder o indicador de volume e brilho do macOS).
+O macOS pede cada uma na primeira vez que ela é usada: Automação (Apple Music e Spotify), Agenda (ao tocar em Conectar agenda), Localização (só com a localização precisa ligada) e Acessibilidade (para esconder o indicador de volume e brilho do macOS). O Acesso Total ao Disco, para as mensagens do WhatsApp e do Slack, o macOS não pede: ligue o Canopy em Privacidade e Segurança › Acesso Total ao Disco.
 
-Como o app é assinado localmente, o macOS pode esquecer as permissões depois de um build novo. Para Acessibilidade, tire o Canopy da lista com o botão − e adicione de novo. Para não ter que repetir isso, escolha o seu Apple ID em **Team**, na aba Signing & Capabilities do Xcode.
+Como o app é assinado localmente, o macOS pode esquecer as permissões depois de um build novo. Para Acessibilidade e Acesso Total ao Disco, tire o Canopy da lista com o botão − e adicione de novo. Para não ter que repetir isso, escolha o seu Apple ID em **Team**, na aba Signing & Capabilities do Xcode.
 
 ## Desempenho
 
