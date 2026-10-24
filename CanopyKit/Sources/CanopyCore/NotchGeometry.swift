@@ -118,4 +118,11 @@ public struct IslandLayout: Sendable, Equatable {
         let height = expanded.height + Self.shadowPadding
         return CGRect(x: notchRect.midX - width / 2, y: notchRect.maxY - height, width: width, height: height)
     }
+
+    /// Onde a ilha está dentro da janela, contando a partir do canto de cima à esquerda.
+    /// Ela fica colada no topo e centrada, como em `panelFrame`.
+    public func islandRect(for phase: IslandPhase, panelSize: CGSize) -> CGRect {
+        let size = size(for: phase)
+        return CGRect(x: (panelSize.width - size.width) / 2, y: 0, width: size.width, height: size.height)
+    }
 }

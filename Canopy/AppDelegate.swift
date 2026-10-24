@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let timer = TimerController()
 
     let battery = BatteryMonitor()
+    let tray = FileTray()
 
     private let music = MusicController()
     private let privacy = PrivacyMonitor()
@@ -20,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let lock = LockMonitor()
     private let output = AudioOutputMonitor()
     private let fullscreen = FullscreenMonitor()
+    private let screenshots = ScreenshotWatcher()
 
     private var windowController: NotchWindowController?
     private var screenObserver: NSObjectProtocol?
@@ -30,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let controller = NotchWindowController(
             coordinator: coordinator,
-            services: IslandServices(calendar: calendar, weather: weather, timer: timer, battery: battery)
+            services: IslandServices(calendar: calendar, weather: weather, timer: timer, battery: battery, tray: tray)
         )
         windowController = controller
         startModules()
@@ -72,10 +74,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if coordinator.closedAdjustment != adjustment { coordinator.closedAdjustment = adjustment }
         let showsWeather = Preferences.weatherEnabled
         if coordinator.showsWeather != showsWeather { coordinator.showsWeather = showsWeather }
+        let showsTray = Preferences.trayEnabled
+        if coordinator.showsTray != showsTray { coordinator.showsTray = showsTray }
         windowController?.applyPreferences()
         mediaKeys.setEnabled(Preferences.replaceSystemHUD && (Preferences.volumeHUD || Preferences.brightnessHUD))
         // Sem esconder em tela cheia, ninguém precisa saber quando um app entra em tela cheia.
         fullscreen.setEnabled(Preferences.hideInFullscreen)
+        screenshots.setEnabled(Preferences.trayEnabled && Preferences.trayScreenshots)
     }
 
     /// O que só precisa existir com a ilha aberta.
@@ -140,6 +145,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         calendar.onUpcomingChange = { [weak self] in self?.meetingChanged() }
         calendar.start()
+
+        tray.start()
+        screenshots.onCapture = { [weak self] urls in
+            self?.tray.add(urls)
+            self?.coordinator.flash(ScreenshotActivity(count: urls.count), for: .seconds(2))
+        }
 
         fullscreen.screenSize = { [weak self] in self?.windowController?.screen?.frame.size }
         fullscreen.onChange = { [weak self] isFullscreen in
@@ -270,6 +281,10 @@ extension AppDelegate {
             coordinator.click()
         case "home":
             coordinator.click()
+        case "tray":
+            tray.simulateItems()
+            coordinator.click()
+            coordinator.select(.tray)
         default:
             break
         }

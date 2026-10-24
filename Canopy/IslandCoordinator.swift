@@ -21,6 +21,13 @@ final class IslandCoordinator {
     /// Ajuste fino do tamanho da ilha fechada, vindo dos Ajustes.
     var closedAdjustment = CGSize.zero
     var showsWeather = true
+    var showsTray = false
+
+    /// A área da bandeja sob um arquivo sendo arrastado até a ilha, ou nil sem arraste.
+    private(set) var dropZone: ShelfDropZone?
+    /// A bandeja tem mais arquivos do que cabem e rola para os lados: o arrastar de dois dedos
+    /// fica com ela em vez de trocar de página.
+    @ObservationIgnored var trayScrolls = false
 
     /// A página escolhida na ilha aberta.
     private(set) var page = IslandPage.home
@@ -34,7 +41,7 @@ final class IslandCoordinator {
     var lastChangeGrew: Bool { machine.lastChangeGrew }
 
     var pages: [IslandPage] {
-        IslandPage.available(hasActivity: primary != nil, showsWeather: showsWeather)
+        IslandPage.available(hasActivity: primary != nil, showsWeather: showsWeather, showsTray: showsTray)
     }
 
     /// A página que aparece de fato: se a escolhida sumiu, a primeira disponível.
@@ -97,11 +104,16 @@ final class IslandCoordinator {
             handle(.pointerEntered)
         } else {
             // Uma pequena espera evita que a ilha pisque quando o mouse passa raspando pela borda.
-            collapseTask = Task { [weak self] in
-                try? await Task.sleep(for: .milliseconds(200))
-                guard !Task.isCancelled else { return }
-                self?.handle(.pointerExited)
-            }
+            scheduleCollapse(after: .milliseconds(200))
+        }
+    }
+
+    private func scheduleCollapse(after delay: Duration) {
+        collapseTask?.cancel()
+        collapseTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            self?.handle(.pointerExited)
         }
     }
 
@@ -113,10 +125,30 @@ final class IslandCoordinator {
         handle(.dismissed)
     }
 
+    // MARK: - Arrastar arquivos
+
+    /// Um arquivo chegou ao notch: a ilha abre na bandeja.
+    func dropEntered() {
+        collapseTask?.cancel()
+        handle(.pointerEntered)
+        select(.tray)
+    }
+
+    func dropMoved(to zone: ShelfDropZone) {
+        if dropZone != zone { dropZone = zone }
+    }
+
+    /// O arquivo saiu da ilha ou foi solto. Depois de soltar, a ilha espera um pouco
+    /// para mostrar o que entrou na bandeja.
+    func dropExited(dropped: Bool) {
+        if dropZone != nil { dropZone = nil }
+        scheduleCollapse(after: dropped ? .seconds(1.6) : .milliseconds(200))
+    }
+
     // MARK: - Páginas
 
     func select(_ newPage: IslandPage) {
-        guard newPage != currentPage else { return }
+        guard newPage != currentPage, pages.contains(newPage) else { return }
         let pages = pages
         let from = pages.firstIndex(of: currentPage) ?? 0
         let to = pages.firstIndex(of: newPage) ?? 0
@@ -127,7 +159,7 @@ final class IslandCoordinator {
     /// Arrastar de dois dedos no trackpad troca de página com a ilha aberta.
     /// - Parameter fingerDeltaX: quanto os dedos andaram; positivo é para a direita.
     func scroll(fingerDeltaX: Double, phase scrollPhase: SwipeTracker.Phase) {
-        guard phase == .expanded else { return }
+        guard phase == .expanded, !(currentPage == .tray && trayScrolls) else { return }
         guard let step = swipe.handle(fingerDeltaX: fingerDeltaX, phase: scrollPhase),
               let target = currentPage.neighbor(step, in: pages)
         else { return }

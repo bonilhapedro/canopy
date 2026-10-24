@@ -3,21 +3,25 @@ import Testing
 
 struct IslandPagerTests {
     @Test func nowPageOnlyExistsWithAnActivity() {
-        #expect(IslandPage.available(hasActivity: false, showsWeather: true) == [.home, .weather, .timer])
-        #expect(IslandPage.available(hasActivity: true, showsWeather: true) == [.now, .home, .weather, .timer])
-        #expect(IslandPage.available(hasActivity: true, showsWeather: false) == [.now, .home, .timer])
+        #expect(IslandPage.available(hasActivity: false, showsWeather: true) == [.home, .weather])
+        #expect(IslandPage.available(hasActivity: true, showsWeather: true) == [.now, .home, .weather])
+        #expect(IslandPage.available(hasActivity: true, showsWeather: false) == [.now, .home])
+    }
+
+    @Test func trayComesRightAfterHome() {
+        #expect(IslandPage.available(hasActivity: true, showsWeather: true, showsTray: true) == [.now, .home, .tray, .weather])
     }
 
     @Test func neighborDoesNotWrapAround() {
-        let pages: [IslandPage] = [.now, .home, .timer]
+        let pages: [IslandPage] = [.now, .home, .weather]
         #expect(IslandPage.now.neighbor(1, in: pages) == .home)
-        #expect(IslandPage.home.neighbor(1, in: pages) == .timer)
-        #expect(IslandPage.timer.neighbor(1, in: pages) == nil)
+        #expect(IslandPage.home.neighbor(1, in: pages) == .weather)
+        #expect(IslandPage.weather.neighbor(1, in: pages) == nil)
         #expect(IslandPage.now.neighbor(-1, in: pages) == nil)
     }
 
     @Test func missingPageFallsBackToTheFirst() {
-        #expect(IslandPage.weather.neighbor(1, in: [.home, .timer]) == .home)
+        #expect(IslandPage.weather.neighbor(1, in: [.home, .tray]) == .home)
     }
 
     @Test func swipeFiresOncePerGesture() {

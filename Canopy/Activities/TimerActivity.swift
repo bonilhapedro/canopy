@@ -82,7 +82,7 @@ final class TimerDoneActivity: IslandActivity {
     }
 }
 
-/// A página do timer: atalhos quando parado, contagem e controles quando correndo.
+/// O timer na ilha aberta: atalhos quando parado, contagem e controles quando correndo.
 struct TimerPage: View {
     let timer: TimerController
 

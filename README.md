@@ -14,16 +14,27 @@ Para testar o estado compacto, ligue **Atividade de teste** no menu da barra.
 
 ## O que a ilha mostra
 
-A ilha aberta tem páginas. As abas ficam no topo, à esquerda do notch. Para trocar, clique numa aba ou arraste dois dedos para os lados no trackpad.
+A ilha aberta tem páginas. As abas ficam no topo, divididas dos dois lados do notch. Para trocar, clique numa aba ou arraste dois dedos para os lados no trackpad.
 
 - **Agora**: a atividade da frente, como a música ou um timer correndo.
 - **Início**: saudação, hora, data e os próximos eventos da agenda.
+- **Bandeja**: arquivos guardados no notch (veja abaixo).
 - **Clima**: temperatura, condição e as próximas horas, com dados do Open-Meteo.
-- **Timer**: atalhos de 1 min a 1 h. A contagem fica ao lado do notch e um alarme toca no fim.
+
+### Bandeja de arquivos
+
+Arraste um arquivo (ou vários) até o notch: a ilha abre na bandeja com duas áreas. Solte à esquerda para guardar, ou à direita para mandar direto por AirDrop. Funciona com arquivos do Finder e com o que outros apps entregam ao arrastar, como fotos do Fotos e anexos do Mail.
+
+Na bandeja, arraste um arquivo para fora para soltá-lo em outro app (ele sai como cópia; o original não muda de lugar), ou use a pilha ao lado para levar todos de uma vez. Clique duas vezes para abrir; com o botão direito há Mostrar no Finder, AirDrop e Tirar da bandeja.
+
+Capturas de tela (⇧⌘3, ⇧⌘4, ⇧⌘5) entram sozinhas na bandeja, e a ilha avisa. Dá para desligar nos Ajustes.
+
+Por padrão a bandeja guarda só onde o arquivo está. Com **Guardar uma cópia** (em Ajustes › Bandeja de arquivos), ela copia para `~/Library/Application Support/Canopy/Tray`, e a cópia é apagada quando sai da bandeja.
 
 Atividades que aparecem ao lado do notch:
 
 - **Música** do Apple Music e do Spotify: capa, faixa, progresso, aleatório, repetir, volume do player e favoritar (só no Apple Music). Clique na capa para abrir o player. Na primeira vez, o macOS pede permissão de Automação para cada player.
+- **Timer**: iniciado pelo menu da barra, com a contagem ao lado do notch e um alarme no fim.
 - **Reunião**: cinco minutos antes de um evento, com botão Entrar para links do Zoom, Meet, Teams e FaceTime.
 - **Bateria**: carregador ligado (com o nível líquido e o tempo até completar), desligado e bateria fraca.
 - **Saída de áudio**: AirPods, fones, monitor ou AirPlay quando viram a saída do Mac.
